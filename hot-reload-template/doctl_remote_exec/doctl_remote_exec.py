@@ -21,7 +21,8 @@ def execute_doctl_command(app_id, component_name, command_to_run):
     # We use 'b' for byte string patterns as pexpect works with bytes.
     # The pattern should be compiled *outside* the function if possible for performance,
     # but for simplicity, we'll define a byte-string pattern here.
-    PROMPT = re.compile(b'\\$ ') 
+    #PROMPT = re.compile(b'\\$ ') 
+    PROMPT = re.compile(b'devcontainer@[^:]+:[^$]+\\$ ')
     
     try:
         # 2. Spawn the interactive process

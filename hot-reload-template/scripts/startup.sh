@@ -108,6 +108,16 @@ else
     echo ""
 fi
 
+# Start welcome page server (built-in Go binary) on port 8080
+# This will automatically stop when the user's app starts via RUN_COMMAND
+WELCOME_PAGE_PORT="${WELCOME_PAGE_PORT:-8080}"
+echo "Starting welcome page server..."
+WELCOME_PAGE_PORT="$WELCOME_PAGE_PORT" /usr/local/bin/welcome-page-server &
+WELCOME_PID=$!
+echo "✓ Welcome page server started (PID: $WELCOME_PID) - endpoint: / on port $WELCOME_PAGE_PORT"
+echo "  (Will automatically stop when your application starts)"
+echo ""
+
 # Determine workspace path
 WORKSPACE="${WORKSPACE_PATH:-/workspaces/app}"
 
@@ -129,7 +139,15 @@ fi
 
 if [ -n "${RUN_COMMAND:-}" ]; then
     echo "Executing RUN_COMMAND: $RUN_COMMAND"
+    echo "Note: Welcome page server will be stopped when your app starts on port 8080"
     cd "$WORKSPACE"
+    
+    # Stop welcome page server (since app will use port 8080)
+    if [ -n "${WELCOME_PID:-}" ]; then
+        echo "Stopping welcome page server (PID: $WELCOME_PID) to free port 8080 for your app..."
+        kill "$WELCOME_PID" 2>/dev/null || true
+        sleep 1  # Give the OS time to release the port before app starts
+    fi
     
     # Build environment setup command
     ENV_SETUP=""
@@ -172,8 +190,10 @@ else
     echo "The container will remain running. You can:"
     echo "  - Configure environment variables in App Platform UI"
     echo "  - Exec into the container to test commands manually"
+    echo "  - Visit the welcome page at http://your-app-url/ for setup instructions"
     echo ""
     echo "Health check server is running on port ${DEV_HEALTH_PORT:-9090}"
+    echo "Welcome page server is running on port ${WELCOME_PAGE_PORT:-8080}"
     echo "Container will stay alive and healthy while you configure your application."
     echo ""
     tail -f /dev/null

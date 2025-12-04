@@ -3,11 +3,13 @@
 # =============================================================================
 
 # =============================================================================
-# Stage 1: Build health server from source
+# Stage 1: Build health server and welcome page server from source
 # =============================================================================
 FROM golang:1.23-alpine AS health-builder
-COPY hot-reload-template/scripts/dev-health-server/main.go /build/
-RUN cd /build && go build -ldflags="-s -w" -o dev-health-server main.go
+COPY hot-reload-template/scripts/dev-health-server/main.go /build/health/
+COPY hot-reload-template/scripts/welcome-page-server/main.go /build/welcome/
+RUN cd /build/health && go build -ldflags="-s -w" -o dev-health-server main.go && \
+    cd /build/welcome && go build -ldflags="-s -w" -o welcome-page-server main.go
 
 # =============================================================================
 # Stage 2: Main development container
@@ -270,8 +272,12 @@ COPY --chown=devcontainer:devcontainer hot-reload-template/scripts/startup.sh /u
 RUN chmod +x /usr/local/bin/startup.sh
 
 # Dev health check server (built from source in stage 1)
-COPY --from=health-builder /build/dev-health-server /usr/local/bin/dev-health-server
+COPY --from=health-builder /build/health/dev-health-server /usr/local/bin/dev-health-server
 RUN chmod +x /usr/local/bin/dev-health-server
+
+# Welcome page server (built from source in stage 1)
+COPY --from=health-builder /build/welcome/welcome-page-server /usr/local/bin/welcome-page-server
+RUN chmod +x /usr/local/bin/welcome-page-server
 
 USER devcontainer
 
