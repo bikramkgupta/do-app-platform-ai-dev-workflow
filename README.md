@@ -4,7 +4,7 @@
 
 Designed for AI assistants like Cursor, GitHub Copilot, and Claude to provide a hands-free experience for rapid iteration at scale.
 
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main/hot-reload-template)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main)
 
 ## 🎯 What Is This?
 

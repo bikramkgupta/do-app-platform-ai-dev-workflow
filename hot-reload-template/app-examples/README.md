@@ -11,49 +11,81 @@ Each subfolder contains a complete, working sample application that:
 
 ## Quick Deploy
 
-Deploy any example app to DigitalOcean App Platform with one click:
+Deploy any example app to DigitalOcean App Platform with one click. **All examples use the same deploy button** - you configure which app to deploy using environment variables.
 
-### Go Sample App
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow&appspec=https://raw.githubusercontent.com/bikram20/do-app-platform-ai-dev-workflow/main/hot-reload-template/app-examples/go-sample-app/appspec.yaml)
+### Step 1: Click Deploy Button
 
-**What gets deployed**:
-- Hot-reload development environment (NOT production)
-- Syncs code from `hot-reload-template/app-examples/go-sample-app/`
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main)
+
+### Step 2: Add Environment Variables
+
+After clicking deploy, configure which example to deploy by adding the appropriate environment variables from the `.env.example` files below:
+
+#### Go Sample App
+**Copy from**: [go-sample-app/.env.example](go-sample-app/.env.example)
+```bash
+GITHUB_REPO_URL=https://github.com/bikram20/do-app-platform-ai-dev-workflow
+GITHUB_REPO_FOLDER=hot-reload-template/app-examples/go-sample-app
+GITHUB_BRANCH=main
+INSTALL_NODE=false
+INSTALL_PYTHON=false
+INSTALL_GOLANG=true
+RUN_COMMAND=bash dev_startup.sh
+GITHUB_SYNC_INTERVAL=30
+ENABLE_DEV_HEALTH=false
+```
+
+**What you get**:
+- Hot-reload development environment with Air for Go
 - Changes sync every 30 seconds
-- Uses Air for Go hot-reload
-
-**Configuration**: See [appspec.yaml](go-sample-app/appspec.yaml)
+- ⚠️ **Testing environment** - NOT for production
 
 ---
 
-### Python FastAPI Sample
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow&appspec=https://raw.githubusercontent.com/bikram20/do-app-platform-ai-dev-workflow/main/hot-reload-template/app-examples/python-fastapi-sample/appspec.yaml)
+#### Python FastAPI Sample
+**Copy from**: [python-fastapi-sample/.env.example](python-fastapi-sample/.env.example)
+```bash
+GITHUB_REPO_URL=https://github.com/bikram20/do-app-platform-ai-dev-workflow
+GITHUB_REPO_FOLDER=hot-reload-template/app-examples/python-fastapi-sample
+GITHUB_BRANCH=main
+INSTALL_NODE=false
+INSTALL_PYTHON=true
+INSTALL_GOLANG=false
+RUN_COMMAND=bash dev_startup.sh
+GITHUB_SYNC_INTERVAL=30
+ENABLE_DEV_HEALTH=false
+```
 
-**What gets deployed**:
-- Hot-reload development environment (NOT production)
-- Syncs code from `hot-reload-template/app-examples/python-fastapi-sample/`
+**What you get**:
+- Hot-reload development environment with uvicorn --reload
 - Changes sync every 30 seconds
-- Uses uvicorn with reload flag
-
-**Configuration**: See [appspec.yaml](python-fastapi-sample/appspec.yaml)
+- ⚠️ **Testing environment** - NOT for production
 
 ---
 
-### Next.js Sample App
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow&appspec=https://raw.githubusercontent.com/bikram20/do-app-platform-ai-dev-workflow/main/hot-reload-template/app-examples/nextjs-sample-app/appspec.yaml)
+#### Next.js Sample App
+**Copy from**: [nextjs-sample-app/.env.example](nextjs-sample-app/.env.example)
+```bash
+GITHUB_REPO_URL=https://github.com/bikram20/do-app-platform-ai-dev-workflow
+GITHUB_REPO_FOLDER=hot-reload-template/app-examples/nextjs-sample-app
+GITHUB_BRANCH=main
+INSTALL_NODE=true
+INSTALL_PYTHON=false
+INSTALL_GOLANG=false
+RUN_COMMAND=bash dev_startup.sh
+GITHUB_SYNC_INTERVAL=30
+ENABLE_DEV_HEALTH=false
+```
 
-**What gets deployed**:
-- Hot-reload development environment (NOT production)
-- Syncs code from `hot-reload-template/app-examples/nextjs-sample-app/`
+**What you get**:
+- Hot-reload development environment with Next.js dev server
 - Changes sync every 30 seconds
-- Uses Next.js dev server with hot-reload
-
-**Configuration**: See [appspec.yaml](nextjs-sample-app/appspec.yaml)
+- ⚠️ **Testing environment** - NOT for production
 
 ---
 
 **Important Notes**:
-- These buttons deploy **TESTING/HOT-RELOAD** environments, NOT production
+- All examples use the **same deploy button** - you choose which app via environment variables
 - `deploy_on_push: true` triggers rebuilds when the hot-reload-template changes
 - Application code syncs via `github-sync.sh` daemon (no full rebuild needed)
 - For production deployment, use separate appspec.yaml with buildpack or your Dockerfile

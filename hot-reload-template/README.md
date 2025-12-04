@@ -2,7 +2,7 @@
 
 **Deploy once, iterate fast.** This template continuously syncs your GitHub repo and runs your dev server—no rebuild loop.
 
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main/hot-reload-template)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main)
 
 Docs map: `README.md` = use the template, `CUSTOMIZATION.md` = change the template, `AGENT.md` = checklist for automating it.
 
@@ -154,9 +154,13 @@ Each example includes:
 
 **Working Examples (in this monorepo):**
 
-- **Go:** [go-sample-app](https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main/hot-reload-template/app-examples/go-sample-app) - [Deploy](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow&appspec=https://raw.githubusercontent.com/bikram20/do-app-platform-ai-dev-workflow/main/hot-reload-template/app-examples/go-sample-app/appspec.yaml)
-- **Python FastAPI:** [python-fastapi-sample](https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main/hot-reload-template/app-examples/python-fastapi-sample) - [Deploy](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow&appspec=https://raw.githubusercontent.com/bikram20/do-app-platform-ai-dev-workflow/main/hot-reload-template/app-examples/python-fastapi-sample/appspec.yaml)
-- **Next.js:** [nextjs-sample-app](https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main/hot-reload-template/app-examples/nextjs-sample-app) - [Deploy](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikram20/do-app-platform-ai-dev-workflow&appspec=https://raw.githubusercontent.com/bikram20/do-app-platform-ai-dev-workflow/main/hot-reload-template/app-examples/nextjs-sample-app/appspec.yaml)
+All examples use the same deploy button. After deploying, configure which app to run using environment variables:
+
+- **Go:** [go-sample-app](https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main/hot-reload-template/app-examples/go-sample-app) - See [.env.example](https://github.com/bikram20/do-app-platform-ai-dev-workflow/blob/main/hot-reload-template/app-examples/go-sample-app/.env.example)
+- **Python FastAPI:** [python-fastapi-sample](https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main/hot-reload-template/app-examples/python-fastapi-sample) - See [.env.example](https://github.com/bikram20/do-app-platform-ai-dev-workflow/blob/main/hot-reload-template/app-examples/python-fastapi-sample/.env.example)
+- **Next.js:** [nextjs-sample-app](https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main/hot-reload-template/app-examples/nextjs-sample-app) - See [.env.example](https://github.com/bikram20/do-app-platform-ai-dev-workflow/blob/main/hot-reload-template/app-examples/nextjs-sample-app/.env.example)
+
+**Deploy**: Click the deploy button above, then add environment variables from the `.env.example` file for your chosen framework.
 
 **Important:** The `appspec.yaml` in these examples is for **testing/hot-reload**. For **production**, create a separate `appspec.yaml` that uses buildpack or your own Dockerfile (not the `hot-reload-template/Dockerfile`).
 
