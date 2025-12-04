@@ -31,7 +31,7 @@ services:
   - key: INSTALL_GOLANG
     scope: RUN_AND_BUILD_TIME
     value: "true"
-  - key: RUN_COMMAND
+  - key: DEV_START_COMMAND
     scope: RUN_AND_BUILD_TIME
     value: bash dev_startup.sh
   - key: GITHUB_SYNC_INTERVAL

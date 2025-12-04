@@ -178,7 +178,7 @@ Deploy the `hot-reload-template/` to create a testing environment:
 2. **Configure environment variables:**
    - `GITHUB_REPO_URL` - Your app repository
    - `GITHUB_SYNC_INTERVAL` - "15" or "30" seconds
-   - `RUN_COMMAND` - "bash dev_startup.sh" (or leave blank if script exists in repo)
+   - `DEV_START_COMMAND` - "bash dev_startup.sh" (or leave blank if script exists in repo)
 
 3. **Push to GitHub** - Changes appear in testing within 15-30 seconds
 

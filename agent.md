@@ -167,7 +167,7 @@ git push origin main  # or feature branch
    - `GITHUB_REPO_URL` = your app repository
    - `GITHUB_TOKEN` = GitHub token (if private)
    - `GITHUB_SYNC_INTERVAL` = "15" or "30" (seconds)
-   - `RUN_COMMAND` = "bash dev_startup.sh" (or leave blank if script exists in repo)
+   - `DEV_START_COMMAND` = "bash dev_startup.sh" (or leave blank if script exists in repo)
 3. Enable only required runtimes (faster builds)
 4. Health check: Use `/dev_health` initially, migrate to app endpoint later
 
@@ -284,7 +284,7 @@ Validates current folder context and workflow state.
 3. Help configure environment variables:
    - `GITHUB_REPO_URL`
    - `GITHUB_SYNC_INTERVAL` (15 or 30)
-   - `RUN_COMMAND` (if needed)
+   - `DEV_START_COMMAND` (if needed)
 4. Explain health check setup
 
 **Key Points:**

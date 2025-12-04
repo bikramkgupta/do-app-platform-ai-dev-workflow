@@ -26,7 +26,7 @@
 # running, without requiring manual npm install commands or server restarts.
 #
 # HOW IT'S USED:
-# This script is executed by the container's RUN_COMMAND as specified in the
+# This script is executed by the container's DEV_START_COMMAND as specified in the
 # appspec.yaml file. It:
 #   - Creates .npmrc with legacy-peer-deps=true to handle peer dependency conflicts
 #   - Handles package-lock.json merge conflicts automatically

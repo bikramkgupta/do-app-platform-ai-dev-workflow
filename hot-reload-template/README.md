@@ -58,7 +58,7 @@ Once the container is running, configure it to run your application:
 1. **Set environment variables** (App Platform UI → Settings → Environment Variables):
    - `GITHUB_REPO_URL` = your app repository URL
    - `GITHUB_TOKEN` = GitHub token (for private repos, optional)
-   - `RUN_COMMAND` = `bash dev_startup.sh` (recommended)
+   - `DEV_START_COMMAND` = `bash dev_startup.sh` (recommended)
 
 2. **Choose runtimes** (App Platform UI → Settings → Build Arguments):
    - Node.js app? `INSTALL_NODE=true`, others=false
@@ -82,7 +82,7 @@ Configure these in **App Platform UI → Settings → Environment Variables**. T
 | `GITHUB_REPO_FOLDER` | No | - | Subfolder within the repo to sync (for monorepos) |
 | `GITHUB_BRANCH` | No | auto-detect | Specific branch to sync (default: current or main) |
 | `GITHUB_TOKEN` | No | - | GitHub token for private repos (stored as secret) |
-| `RUN_COMMAND` | No | auto-detect | Command to start your app (e.g., `bash dev_startup.sh`) |
+| `DEV_START_COMMAND` | No | auto-detect | Command to start your dev server (e.g., `bash dev_startup.sh`) |
 | `WORKSPACE_PATH` | No | `/workspaces/app` | Where to sync your repo |
 | `GITHUB_SYNC_INTERVAL` | No | `30` | How often to sync repo (seconds) |
 | `ENABLE_DEV_HEALTH` | No | `true` | Bootstrap health server; set `false` when your app has health endpoint |
@@ -247,7 +247,7 @@ The container includes a temporary health server to pass initial health checks. 
 - **Build arguments are build-time** - Changes to build args require a full rebuild.
 - **Lock file conflicts auto-resolved** - The sync script and example dev_startup.sh scripts automatically detect and resolve merge conflicts in lock files (package-lock.json, go.sum, uv.lock, poetry.lock).
 - **Hard rebuild on errors** - Example scripts automatically perform clean rebuilds when dependency installation fails.
-- **Blank RUN_COMMAND works** - Container stays healthy even when RUN_COMMAND is not set, allowing you to configure it later via App Platform UI.
+- **Blank DEV_START_COMMAND works** - Container stays healthy even when DEV_START_COMMAND is not set, allowing you to configure it later via App Platform UI.
 
 ## Deploy Options
 
@@ -265,7 +265,7 @@ Edit `app.yaml` with your values, then: `doctl apps create --spec app.yaml`
 docker build -t dev-env .
 docker run -p 9090:9090 -p 8080:8080 \
   -e GITHUB_REPO_URL=https://github.com/user/your-repo.git \
-  -e RUN_COMMAND="bash dev_startup.sh" \
+  -e DEV_START_COMMAND="bash dev_startup.sh" \
   dev-env
 ```
 
@@ -278,7 +278,7 @@ docker run -p 9090:9090 -p 8080:8080 \
 - **npm peer dependency errors:** Use the Next.js example script which automatically creates `.npmrc` with `legacy-peer-deps=true`
 - **Lock file merge conflicts:** The sync script and example dev_startup.sh scripts automatically resolve these. If issues persist, manually delete the lock file and let it regenerate.
 - **Dependency installation fails:** Example scripts automatically perform hard rebuilds (clean reinstall) when errors are detected. Check logs for details.
-- **RUN_COMMAND blank:** Container will stay running and healthy. Configure `GITHUB_REPO_URL` and `RUN_COMMAND` (or add `dev_startup.sh` to your repo) to start your app.
+- **DEV_START_COMMAND blank:** Container will stay running and healthy. Configure `GITHUB_REPO_URL` and `DEV_START_COMMAND` (or add `dev_startup.sh` to your repo) to start your app.
 
 
 ## Advanced Customization

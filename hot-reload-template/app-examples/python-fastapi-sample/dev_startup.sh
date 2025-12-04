@@ -30,7 +30,7 @@
 # for Python source file changes.
 #
 # HOW IT'S USED:
-# This script is executed by the container's RUN_COMMAND as specified in the
+# This script is executed by the container's DEV_START_COMMAND as specified in the
 # appspec.yaml file. It:
 #   - Handles uv.lock and poetry.lock merge conflicts automatically
 #   - Runs 'uv sync --no-dev' initially to install all dependencies

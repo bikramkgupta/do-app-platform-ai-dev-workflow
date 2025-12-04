@@ -39,7 +39,7 @@ Docs map: `README.md` = use the template, `CUSTOMIZATION.md` = change the templa
   - Add hooks after successful sync (e.g., run `/workspaces/app/.dev-container/post-sync.sh`).
 
 - **Run extra services before the app:**
-  - In `scripts/startup.sh`, start your service before the RUN_COMMAND section, e.g.:
+  - In `scripts/startup.sh`, start your service before the DEV_START_COMMAND section, e.g.:
     ```bash
     echo "Starting Redis..."
     redis-server --daemonize yes

@@ -26,7 +26,7 @@
 # each code change, significantly improving developer productivity.
 #
 # HOW IT'S USED:
-# This script is executed by the container's RUN_COMMAND as specified in the
+# This script is executed by the container's DEV_START_COMMAND as specified in the
 # appspec.yaml file. It runs continuously in the foreground, monitoring for
 # changes in a loop. The script:
 #   - Handles go.sum merge conflicts automatically

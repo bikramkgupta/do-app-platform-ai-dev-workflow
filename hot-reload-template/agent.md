@@ -7,7 +7,7 @@ Docs map: `README.md` = how humans use it, `CUSTOMIZATION.md` = how to fork/exte
 ## What to Collect from the User
 
 - App repo URL (and GitHub token if private).
-- Startup plan: preferred `RUN_COMMAND` (default `bash dev_startup.sh`) or confirm repo already has `dev_startup.sh`/`startup.sh`.
+- Startup plan: preferred `DEV_START_COMMAND` (default `bash dev_startup.sh`) or confirm repo already has `dev_startup.sh`/`startup.sh`.
 - Runtimes to install via build args (`INSTALL_NODE/PYTHON/GOLANG/RUST`, DB clients).
 - Health check choice: default `/dev_health` on port `9090` is for first deploy only (built-in Go binary, always available); plan to point checks to the app's endpoint/port and disable the built-in server afterward via `ENABLE_DEV_HEALTH=false`.
 - App name/region/size (for `app.yaml`), sync interval if they want non-default.
@@ -18,7 +18,7 @@ Docs map: `README.md` = how humans use it, `CUSTOMIZATION.md` = how to fork/exte
 2) **Set expectations:** Remind the user this template container clones their app repo and runs it; code lives in their repo, not here.  
 3) **Fill config:** Edit `app.yaml` (or App Platform UI):
    - Build args for runtimes/clients.
-   - Envs: `GITHUB_REPO_URL`, `GITHUB_TOKEN` (SECRET), `RUN_COMMAND` or rely on repo script, optional `GITHUB_SYNC_INTERVAL`, `WORKSPACE_PATH`.  
+   - Envs: `GITHUB_REPO_URL`, `GITHUB_TOKEN` (SECRET), `DEV_START_COMMAND` or rely on repo script, optional `GITHUB_SYNC_INTERVAL`, `WORKSPACE_PATH`.  
    - Health check: keep `/dev_health` on `9090` unless the user prefers their own.
    - Verify that deploy-on-push is NOT enabled. If it is enabled (true), then every git commit will result in app being re-deployed, which is NOT what we want.
    - If the component is static_site, it will not work. Because the hot reload requires a container, and static site is deployed to Spaces object store. Only services and workers type components will work.
@@ -27,7 +27,7 @@ Docs map: `README.md` = how humans use it, `CUSTOMIZATION.md` = how to fork/exte
 
 ## Smart Defaults
 
-- `RUN_COMMAND="bash dev_startup.sh"`; repo `dev_startup.sh`/`startup.sh` is used if present and `RUN_COMMAND` is empty.
+- `DEV_START_COMMAND="bash dev_startup.sh"`; repo `dev_startup.sh`/`startup.sh` is used if present and `DEV_START_COMMAND` is empty.
 - Built-in `/dev_health` (lightweight Go binary, ~2MB) is just a bootstrap aid. Move health to the app, set `ENABLE_DEV_HEALTH=false`, and disable unused runtimes for smaller images.
 - App listens on `8080`; health server listens on `9090`.
 - Sync interval: `30` seconds unless the user asks otherwise.

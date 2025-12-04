@@ -109,7 +109,7 @@ else
 fi
 
 # Start welcome page server (built-in Go binary) on port 8080
-# This will automatically stop when the user's app starts via RUN_COMMAND
+# This will automatically stop when the user's app starts via DEV_START_COMMAND
 WELCOME_PAGE_PORT="${WELCOME_PAGE_PORT:-8080}"
 echo "Starting welcome page server..."
 WELCOME_PAGE_PORT="$WELCOME_PAGE_PORT" /usr/local/bin/welcome-page-server &
@@ -126,19 +126,19 @@ echo "Starting Application..."
 echo "=========================================="
 echo ""
 
-# Default to repo-provided dev_startup.sh or startup.sh when RUN_COMMAND is not set
-if [ -z "${RUN_COMMAND:-}" ]; then
+# Default to repo-provided dev_startup.sh or startup.sh when DEV_START_COMMAND is not set
+if [ -z "${DEV_START_COMMAND:-}" ]; then
     if [ -f "$WORKSPACE/dev_startup.sh" ]; then
-        RUN_COMMAND="bash dev_startup.sh"
-        echo "RUN_COMMAND not set; using dev_startup.sh from repository."
+        DEV_START_COMMAND="bash dev_startup.sh"
+        echo "DEV_START_COMMAND not set; using dev_startup.sh from repository."
     elif [ -f "$WORKSPACE/startup.sh" ]; then
-        RUN_COMMAND="bash startup.sh"
-        echo "RUN_COMMAND not set; using startup.sh from repository."
+        DEV_START_COMMAND="bash startup.sh"
+        echo "DEV_START_COMMAND not set; using startup.sh from repository."
     fi
 fi
 
-if [ -n "${RUN_COMMAND:-}" ]; then
-    echo "Executing RUN_COMMAND: $RUN_COMMAND"
+if [ -n "${DEV_START_COMMAND:-}" ]; then
+    echo "Executing DEV_START_COMMAND: $DEV_START_COMMAND"
     echo "Note: Welcome page server will be stopped when your app starts on port 8080"
     cd "$WORKSPACE"
     
@@ -173,18 +173,18 @@ if [ -n "${RUN_COMMAND:-}" ]; then
     fi
     
     # Execute command with environment loaded
-    exec bash -c "${ENV_SETUP}${RUN_COMMAND}"
+    exec bash -c "${ENV_SETUP}${DEV_START_COMMAND}"
 else
     echo "=========================================="
     echo "No Application Command Configured"
     echo "=========================================="
     echo ""
-    echo "RUN_COMMAND is not set and no dev_startup.sh or startup.sh found in repository."
+    echo "DEV_START_COMMAND is not set and no dev_startup.sh or startup.sh found in repository."
     echo "Container is running and ready for configuration."
     echo ""
     echo "Next steps:"
     echo "  1. Set GITHUB_REPO_URL to point to your application repository"
-    echo "  2. Set RUN_COMMAND to your application startup command, OR"
+    echo "  2. Set DEV_START_COMMAND to your application startup command, OR"
     echo "  3. Add a dev_startup.sh script to your repository"
     echo ""
     echo "The container will remain running. You can:"

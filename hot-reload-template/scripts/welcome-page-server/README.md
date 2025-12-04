@@ -28,7 +28,7 @@ The server:
   - Example scripts for different frameworks
   - Important notes and warnings
 - Returns 404 for all other paths
-- Automatically stops when a user's application starts (via RUN_COMMAND)
+- Automatically stops when a user's application starts (via DEV_START_COMMAND)
 
 ## Building
 
@@ -47,13 +47,13 @@ The `-ldflags="-s -w"` flags strip debug info and symbol table for smaller binar
 The welcome page server automatically starts when no application is configured:
 
 - **No app configured:** Welcome page runs on :8080, showing setup instructions
-- **App starts:** Server automatically stops when RUN_COMMAND executes (to free port 8080)
-- **No configuration needed:** Works automatically based on whether RUN_COMMAND is set
+- **App starts:** Server automatically stops when DEV_START_COMMAND executes (to free port 8080)
+- **No configuration needed:** Works automatically based on whether DEV_START_COMMAND is set
 
 ## Behavior
 
 1. **On container start:** Welcome page server starts on port 8080 (if enabled)
-2. **When app starts:** If RUN_COMMAND is set, the welcome page server stops to free port 8080 for the user's application
+2. **When app starts:** If DEV_START_COMMAND is set, the welcome page server stops to free port 8080 for the user's application
 3. **If no app configured:** Welcome page continues running, showing setup instructions
 
 ## Local Testing
