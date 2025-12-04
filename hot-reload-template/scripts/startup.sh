@@ -1,0 +1,180 @@
+#!/usr/bin/env bash
+# Startup Script for Dev Environment
+# Orchestrates GitHub sync and user application startup
+
+set -euo pipefail
+
+echo "=========================================="
+echo "Dev Environment Starting..."
+echo "=========================================="
+echo ""
+
+# Source bashrc to load all environment variables
+# This loads NVM, UV PATH, Go PATH, Rust, and other tools
+if [ -f /home/devcontainer/.bashrc ]; then
+    source /home/devcontainer/.bashrc
+fi
+
+# Display environment configuration
+echo "Configuration:"
+echo "  Repository: ${GITHUB_REPO_URL:-not set}"
+echo "  Workspace: ${WORKSPACE_PATH:-/workspaces/app}"
+echo "  Sync Interval: ${GITHUB_SYNC_INTERVAL:-60}s"
+echo ""
+
+# Display installed runtimes
+echo "Installed Runtimes:"
+command -v node &>/dev/null && echo "  ✓ Node.js $(node --version)"
+command -v python &>/dev/null && echo "  ✓ Python $(python --version 2>&1)"
+command -v go &>/dev/null && echo "  ✓ Go $(go version | awk '{print $3}')"
+command -v rustc &>/dev/null && echo "  ✓ Rust $(rustc --version | awk '{print $2}')"
+echo ""
+
+# Display installed database clients
+echo "Database Clients:"
+command -v psql &>/dev/null && echo "  ✓ PostgreSQL"
+command -v mongosh &>/dev/null && echo "  ✓ MongoDB"
+command -v mysql &>/dev/null && echo "  ✓ MySQL"
+echo ""
+
+echo "=========================================="
+echo "Starting GitHub Sync Service..."
+echo "=========================================="
+echo ""
+
+# Do initial sync first (blocking)
+echo "Performing initial repository sync..."
+REPO_URL="${GITHUB_REPO_URL:-}"
+AUTH_TOKEN="${GITHUB_TOKEN:-}"
+WORKSPACE="${WORKSPACE_PATH:-/workspaces/app}"
+
+if [ -n "$REPO_URL" ]; then
+    # Inject auth token if provided
+    if [ -n "$AUTH_TOKEN" ]; then
+        if [[ "$REPO_URL" == https://* ]]; then
+            CLEAN_URL="${REPO_URL#https://}"
+            CLEAN_URL="${CLEAN_URL#*@}"
+            REPO_URL_WITH_AUTH="https://${AUTH_TOKEN}@${CLEAN_URL}"
+        else
+            REPO_URL_WITH_AUTH="$REPO_URL"
+        fi
+    else
+        REPO_URL_WITH_AUTH="$REPO_URL"
+    fi
+
+    if [ -d "$WORKSPACE/.git" ]; then
+        echo "Repository exists. Pulling latest changes..."
+        cd "$WORKSPACE"
+        git fetch origin 2>&1 || true
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+        git pull origin "$CURRENT_BRANCH" 2>&1 || echo "Warning: Pull failed, continuing..."
+    else
+        echo "Cloning repository..."
+        mkdir -p "$WORKSPACE"
+        if [ "$(ls -A "$WORKSPACE" 2>/dev/null)" ]; then
+            rm -rf "${WORKSPACE:?}/"* "${WORKSPACE:?}/".[!.]* "${WORKSPACE:?}/"..?* 2>/dev/null || true
+        fi
+        git clone "$REPO_URL_WITH_AUTH" "$WORKSPACE" 2>&1 || echo "Warning: Clone failed, continuing..."
+        if [ -n "$AUTH_TOKEN" ] && [ -d "$WORKSPACE/.git" ]; then
+            cd "$WORKSPACE"
+            git remote set-url origin "$REPO_URL_WITH_AUTH" 2>/dev/null || true
+        fi
+    fi
+    echo "✓ Initial sync completed"
+else
+    echo "No GITHUB_REPO_URL configured. Skipping sync."
+fi
+echo ""
+
+# Start GitHub sync loop in background (continuous polling)
+echo "Starting continuous sync service..."
+/usr/local/bin/github-sync.sh &
+GITHUB_SYNC_PID=$!
+echo "✓ GitHub sync service started (PID: $GITHUB_SYNC_PID)"
+echo ""
+
+# Start dev health check server (built-in Go binary) unless disabled
+ENABLE_DEV_HEALTH="${ENABLE_DEV_HEALTH:-true}"
+DEV_HEALTH_PORT="${DEV_HEALTH_PORT:-9090}"
+if [ "$ENABLE_DEV_HEALTH" = "true" ]; then
+    echo "Starting dev health check server..."
+    DEV_HEALTH_PORT="$DEV_HEALTH_PORT" /usr/local/bin/dev-health-server &
+    HEALTH_PID=$!
+    echo "✓ Dev health check server started (PID: $HEALTH_PID) - endpoint: /dev_health on port $DEV_HEALTH_PORT"
+    echo ""
+else
+    echo "Skipping dev health check server (ENABLE_DEV_HEALTH=$ENABLE_DEV_HEALTH)"
+    echo "Ensure your application exposes its own health endpoint per your App Spec."
+    echo ""
+fi
+
+# Determine workspace path
+WORKSPACE="${WORKSPACE_PATH:-/workspaces/app}"
+
+echo "=========================================="
+echo "Starting Application..."
+echo "=========================================="
+echo ""
+
+# Default to repo-provided dev_startup.sh or startup.sh when RUN_COMMAND is not set
+if [ -z "${RUN_COMMAND:-}" ]; then
+    if [ -f "$WORKSPACE/dev_startup.sh" ]; then
+        RUN_COMMAND="bash dev_startup.sh"
+        echo "RUN_COMMAND not set; using dev_startup.sh from repository."
+    elif [ -f "$WORKSPACE/startup.sh" ]; then
+        RUN_COMMAND="bash startup.sh"
+        echo "RUN_COMMAND not set; using startup.sh from repository."
+    fi
+fi
+
+if [ -n "${RUN_COMMAND:-}" ]; then
+    echo "Executing RUN_COMMAND: $RUN_COMMAND"
+    cd "$WORKSPACE"
+    
+    # Build environment setup command
+    ENV_SETUP=""
+    
+    # Load NVM if Node.js is installed
+    if [ -d "$HOME/.nvm" ]; then
+        ENV_SETUP="export NVM_DIR=\"\$HOME/.nvm\" && [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\" && "
+    fi
+    
+    # Load Python/UV if installed
+    if [ -d "$HOME/.local/bin" ]; then
+        ENV_SETUP="${ENV_SETUP}export PATH=\"\$HOME/.local/bin:\$PATH\" && "
+    fi
+    
+    # Load Go if installed
+    if [ -d "/usr/local/go/bin" ]; then
+        ENV_SETUP="${ENV_SETUP}export PATH=\"/usr/local/go/bin:\$PATH\" && export GOPATH=\"\$HOME/go\" && export PATH=\"\$GOPATH/bin:\$PATH\" && "
+    fi
+    
+    # Load Rust if installed
+    if [ -f "$HOME/.cargo/env" ]; then
+        ENV_SETUP="${ENV_SETUP}source \"\$HOME/.cargo/env\" && "
+    fi
+    
+    # Execute command with environment loaded
+    exec bash -c "${ENV_SETUP}${RUN_COMMAND}"
+else
+    echo "=========================================="
+    echo "No Application Command Configured"
+    echo "=========================================="
+    echo ""
+    echo "RUN_COMMAND is not set and no dev_startup.sh or startup.sh found in repository."
+    echo "Container is running and ready for configuration."
+    echo ""
+    echo "Next steps:"
+    echo "  1. Set GITHUB_REPO_URL to point to your application repository"
+    echo "  2. Set RUN_COMMAND to your application startup command, OR"
+    echo "  3. Add a dev_startup.sh script to your repository"
+    echo ""
+    echo "The container will remain running. You can:"
+    echo "  - Configure environment variables in App Platform UI"
+    echo "  - Exec into the container to test commands manually"
+    echo ""
+    echo "Health check server is running on port ${DEV_HEALTH_PORT:-9090}"
+    echo "Container will stay alive and healthy while you configure your application."
+    echo ""
+    tail -f /dev/null
+fi

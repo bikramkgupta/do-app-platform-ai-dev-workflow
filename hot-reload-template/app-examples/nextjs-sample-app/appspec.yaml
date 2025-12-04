@@ -1,0 +1,58 @@
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+ingress:
+  rules:
+  - component:
+      name: dev-workspace-nextjs
+    match:
+      path:
+        prefix: /
+name: nextjs-sample-app
+region: syd
+services:
+- dockerfile_path: hot-reload-template/Dockerfile
+  envs:
+  - key: GITHUB_REPO_URL
+    scope: RUN_AND_BUILD_TIME
+    value: https://github.com/bikram20/do-app-platform-ai-dev-workflow
+  - key: GITHUB_REPO_FOLDER
+    scope: RUN_AND_BUILD_TIME
+    value: hot-reload-template/app-examples/nextjs-sample-app
+  - key: GITHUB_BRANCH
+    scope: RUN_AND_BUILD_TIME
+    value: main
+  - key: INSTALL_NODE
+    scope: RUN_AND_BUILD_TIME
+    value: "true"
+  - key: INSTALL_PYTHON
+    scope: RUN_AND_BUILD_TIME
+    value: "false"
+  - key: INSTALL_GOLANG
+    scope: RUN_AND_BUILD_TIME
+    value: "false"
+  - key: RUN_COMMAND
+    scope: RUN_AND_BUILD_TIME
+    value: bash dev_startup.sh
+  - key: GITHUB_SYNC_INTERVAL
+    scope: RUN_AND_BUILD_TIME
+    value: "30"
+  - key: ENABLE_DEV_HEALTH
+    scope: RUN_AND_BUILD_TIME
+    value: "false"
+  github:
+    branch: main
+    repo: bikram20/do-app-platform-ai-dev-workflow
+  health_check:
+    failure_threshold: 5
+    http_path: /api/health
+    initial_delay_seconds: 30
+    period_seconds: 10
+    port: 8080
+    success_threshold: 1
+    timeout_seconds: 5
+  http_port: 8080
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-1gb
+  name: dev-workspace-nextjs
+  source_dir: /
