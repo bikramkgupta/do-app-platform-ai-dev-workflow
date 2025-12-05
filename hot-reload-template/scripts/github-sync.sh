@@ -125,6 +125,16 @@ sync_repo() {
                     log_info "Current branch: $CURRENT_BRANCH"
                 fi
 
+                # Check if branch is behind before attempting pull
+                LOCAL_COMMIT=$(git rev-parse HEAD)
+                REMOTE_COMMIT=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null || echo "")
+                
+                if [ -n "$REMOTE_COMMIT" ] && [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
+                    if git merge-base --is-ancestor "$LOCAL_COMMIT" "$REMOTE_COMMIT" 2>/dev/null; then
+                        log_info "Branch is behind. Preparing for fast-forward..."
+                    fi
+                fi
+                
                 # Pull latest changes
                 if git pull origin "$CURRENT_BRANCH" 2>&1; then
                     log_info "Successfully pulled latest changes to cache"
@@ -199,6 +209,39 @@ sync_repo() {
                     log_info "Current branch: $CURRENT_BRANCH"
                 fi
 
+                # Check if branch is behind before attempting pull
+                LOCAL_COMMIT=$(git rev-parse HEAD)
+                REMOTE_COMMIT=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null || echo "")
+                
+                if [ -n "$REMOTE_COMMIT" ] && [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
+                    # Check if we can fast-forward (branch is behind)
+                    if git merge-base --is-ancestor "$LOCAL_COMMIT" "$REMOTE_COMMIT" 2>/dev/null; then
+                        log_info "Branch is behind. Local changes detected. Preparing for fast-forward..."
+                        
+                        # Proactively handle lock files since they'll be regenerated anyway
+                        # This prevents pull failures due to local modifications
+                        LOCK_FILES_MODIFIED=false
+                        for lockfile in package-lock.json go.sum uv.lock poetry.lock; do
+                            if git diff --quiet "$lockfile" 2>/dev/null; then
+                                continue  # File not modified
+                            fi
+                            if [ -f "$lockfile" ]; then
+                                log_info "Detected local changes to $lockfile. Removing to allow fast-forward (will be regenerated)..."
+                                git checkout -- "$lockfile" 2>/dev/null || rm -f "$lockfile"
+                                LOCK_FILES_MODIFIED=true
+                            fi
+                        done
+                        
+                        # Also handle other common generated files
+                        for genfile in .npmrc node_modules/.package-lock.json; do
+                            if [ -f "$genfile" ] && ! git diff --quiet "$genfile" 2>/dev/null 2>&1; then
+                                log_info "Resetting local changes to $genfile..."
+                                git checkout -- "$genfile" 2>/dev/null || true
+                            fi
+                        done
+                    fi
+                fi
+                
                 # Pull latest changes
                 PULL_OUTPUT=$(git pull origin "$CURRENT_BRANCH" 2>&1)
                 PULL_EXIT_CODE=$?
@@ -211,19 +254,19 @@ sync_repo() {
                         # Detect and resolve common lock file conflicts
                         if echo "$PULL_OUTPUT" | grep -q "package-lock.json"; then
                             log_info "Resolving package-lock.json conflict..."
-                            rm -f package-lock.json 2>/dev/null || true
+                            git checkout -- package-lock.json 2>/dev/null || rm -f package-lock.json 2>/dev/null || true
                         fi
                         if echo "$PULL_OUTPUT" | grep -q "go.sum"; then
                             log_info "Resolving go.sum conflict..."
-                            rm -f go.sum 2>/dev/null || true
+                            git checkout -- go.sum 2>/dev/null || rm -f go.sum 2>/dev/null || true
                         fi
                         if echo "$PULL_OUTPUT" | grep -q "uv.lock"; then
                             log_info "Resolving uv.lock conflict..."
-                            rm -f uv.lock 2>/dev/null || true
+                            git checkout -- uv.lock 2>/dev/null || rm -f uv.lock 2>/dev/null || true
                         fi
                         if echo "$PULL_OUTPUT" | grep -q "poetry.lock"; then
                             log_info "Resolving poetry.lock conflict..."
-                            rm -f poetry.lock 2>/dev/null || true
+                            git checkout -- poetry.lock 2>/dev/null || rm -f poetry.lock 2>/dev/null || true
                         fi
                         # Try pull again after resolving conflicts
                         if git pull origin "$CURRENT_BRANCH" 2>&1; then
@@ -231,8 +274,23 @@ sync_repo() {
                         else
                             log_warn "Failed to pull changes even after resolving conflicts. Repository may have other local modifications."
                         fi
+                    elif echo "$PULL_OUTPUT" | grep -qi "cannot pull with rebase\|cannot pull\|your local changes"; then
+                        # Another common error - local changes preventing pull
+                        log_warn "Local changes preventing pull. Attempting to reset lock files and retry..."
+                        for lockfile in package-lock.json go.sum uv.lock poetry.lock; do
+                            if [ -f "$lockfile" ] && ! git diff --quiet "$lockfile" 2>/dev/null; then
+                                log_info "Resetting $lockfile to allow pull..."
+                                git checkout -- "$lockfile" 2>/dev/null || rm -f "$lockfile"
+                            fi
+                        done
+                        # Try pull again
+                        if git pull origin "$CURRENT_BRANCH" 2>&1; then
+                            log_info "Successfully pulled after resetting lock files"
+                        else
+                            log_warn "Failed to pull changes. Repository may have other local modifications."
+                        fi
                     else
-                        log_warn "Failed to pull changes. Repository may have local modifications."
+                        log_warn "Failed to pull changes: $PULL_OUTPUT"
                     fi
                 fi
             else
