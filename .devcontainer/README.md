@@ -12,6 +12,10 @@ Once you open your project in this Dev Container, you should hit the “aha” m
 
 This configuration uses **Docker Compose Profiles** to manage the various services (databases, message queues, etc.) available in the development environment. This allows you to keep the environment lightweight by only running the services you need.
 
+
+
+![Dev Container Architecture](images/devcontainer-architecture.svg)
+
 ## Getting Started
 
 1. **Create the folder**  
