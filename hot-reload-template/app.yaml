@@ -53,6 +53,12 @@ services:
         value: "true"  # Go apps
       - key: INSTALL_RUST
         value: "false"  # Rust apps
+      - key: INSTALL_RUBY
+        value: "false"  # Ruby/Rails apps
+      - key: RUBY_VERSIONS
+        value: "3.4 3.3"
+      - key: DEFAULT_RUBY
+        value: "3.4"
       - key: INSTALL_POSTGRES
         value: "true"
       - key: INSTALL_MONGODB

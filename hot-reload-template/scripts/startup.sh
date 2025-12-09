@@ -28,6 +28,7 @@ command -v node &>/dev/null && echo "  ✓ Node.js $(node --version)"
 command -v python &>/dev/null && echo "  ✓ Python $(python --version 2>&1)"
 command -v go &>/dev/null && echo "  ✓ Go $(go version | awk '{print $3}')"
 command -v rustc &>/dev/null && echo "  ✓ Rust $(rustc --version | awk '{print $2}')"
+command -v ruby &>/dev/null && echo "  ✓ Ruby $(ruby --version | awk '{print $2}')"
 echo ""
 
 # Display installed database clients
@@ -171,7 +172,12 @@ if [ -n "${DEV_START_COMMAND:-}" ]; then
     if [ -f "$HOME/.cargo/env" ]; then
         ENV_SETUP="${ENV_SETUP}source \"\$HOME/.cargo/env\" && "
     fi
-    
+
+    # Load Ruby if installed
+    if [ -d "$HOME/.rbenv" ]; then
+        ENV_SETUP="${ENV_SETUP}export PATH=\"\$HOME/.rbenv/bin:\$PATH\" && eval \"\$(rbenv init - bash)\" && "
+    fi
+
     # Execute command with environment loaded
     exec bash -c "${ENV_SETUP}${DEV_START_COMMAND}"
 else
