@@ -25,26 +25,37 @@ spec:
       instance_count: 1
       instance_size_slug: apps-s-1vcpu-1gb
 
-      # Internal port for health check
+      # Internal port for application
       internal_ports:
-      - 9090
+      - 8080
 
       # HTTP port for your application traffic (health check uses dedicated port below)
       http_port: 8080
 
       # Health check configuration
-      # Uses /dev_health endpoint which is always available (even without user app)
+      # Points to Next.js sample app health endpoint
       health_check:
-        http_path: /dev_health
+        http_path: /api/health
         initial_delay_seconds: 30
         period_seconds: 10
         timeout_seconds: 5
         success_threshold: 1
         failure_threshold: 5
-        port: 9090
+        port: 8080
 
       # Environment variables
       envs:
+        # === Template Tracking ===
+        - key: APPPLAT_BASE_TEMPLATE
+          value: "hot-reload-template"
+          scope: RUN_TIME
+        - key: APPPLAT_TEMPLATE_TYPE
+          value: "base"
+          scope: RUN_TIME
+        - key: APPPLAT_TEMPLATE_VERSION
+          value: "1.0.0"
+          scope: RUN_TIME
+
         # === Build Arguments ===
         # Runtime and database client installation (BUILD_TIME scope)
         # Enable only the runtimes you need for faster builds
@@ -52,10 +63,10 @@ spec:
           value: "true"  # Node.js/Next.js/Remix apps (optional - health server uses Go binary)
           scope: BUILD_TIME
         - key: INSTALL_PYTHON
-          value: "true"  # Python/FastAPI/Django apps
+          value: "false"  # Python/FastAPI/Django apps
           scope: BUILD_TIME
         - key: INSTALL_GOLANG
-          value: "true"  # Go apps
+          value: "false"  # Go apps
           scope: BUILD_TIME
         - key: INSTALL_RUST
           value: "false"  # Rust apps
@@ -71,9 +82,9 @@ spec:
           scope: BUILD_TIME
 
         # === GitHub Repository to Clone ===
-        # Set this to the repository you want to work on
+        # Default: Next.js sample app (ready to run)
         - key: GITHUB_REPO_URL
-          value: ""
+          value: "https://github.com/bikram20/do-app-platform-ai-dev-workflow"
           scope: RUN_TIME
 
         # === GitHub Authentication ===
@@ -96,7 +107,7 @@ spec:
         # Built-in Go binary serving /dev_health on port 9090 for bootstrap health checks
         # Set to "false" when your app provides its own health endpoint
         - key: ENABLE_DEV_HEALTH
-          value: "true"
+          value: "false"
           scope: RUN_TIME
 
         # === Application Startup ===
@@ -114,19 +125,47 @@ spec:
         #   Note: Simple commands don't handle dependency installation, lock file conflicts,
         #   or automatic error recovery. Use scripts for production-ready setups.
         - key: DEV_START_COMMAND
-          value: ""
+          value: "bash dev_startup.sh"
           scope: RUN_TIME
 
         # === Monorepo Support ===
-        # Specify subfolder within the repo to sync (for monorepos)
+        # Default: Next.js sample app folder
         - key: GITHUB_REPO_FOLDER
-          value: ""
+          value: "hot-reload-template/app-examples/nextjs-sample-app"
           scope: RUN_TIME
 
         # === Branch Selection ===
-        # Specify which branch to sync (useful for feature/staging branches)
         - key: GITHUB_BRANCH
+          value: "main"
+          scope: RUN_TIME
+
+        # === Pre-Deploy Job Configuration ===
+        # Jobs execute only when git commit changes (not every sync)
+        - key: PRE_DEPLOY_REPO_URL
           value: ""
+          scope: RUN_TIME
+        - key: PRE_DEPLOY_FOLDER
+          value: "scripts/pre-deploy"
+          scope: RUN_TIME
+        - key: PRE_DEPLOY_COMMAND
+          value: "bash migrate.sh"
+          scope: RUN_TIME
+        - key: PRE_DEPLOY_TIMEOUT
+          value: "300"
+          scope: RUN_TIME
+
+        # === Post-Deploy Job Configuration ===
+        - key: POST_DEPLOY_REPO_URL
+          value: ""
+          scope: RUN_TIME
+        - key: POST_DEPLOY_FOLDER
+          value: "scripts/post-deploy"
+          scope: RUN_TIME
+        - key: POST_DEPLOY_COMMAND
+          value: "bash seed.sh"
+          scope: RUN_TIME
+        - key: POST_DEPLOY_TIMEOUT
+          value: "300"
           scope: RUN_TIME
 
   # Optional: Add alerts
