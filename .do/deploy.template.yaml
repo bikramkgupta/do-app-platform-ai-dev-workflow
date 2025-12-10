@@ -18,7 +18,7 @@ spec:
       # GitHub repository (this repository will be used for the dev environment itself)
       git:
         branch: main
-        repo_clone_url: https://github.com/bikram20/do-app-platform-ai-dev-workflow.git
+        repo_clone_url: https://github.com/bikram20/do-app-platform-ai-dev-workflow/tree/main
 
       # Service type - worker with HTTP health check
       instance_count: 1
