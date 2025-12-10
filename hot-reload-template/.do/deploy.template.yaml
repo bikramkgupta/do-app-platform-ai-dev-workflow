@@ -16,10 +16,9 @@ spec:
       dockerfile_path: hot-reload-template/Dockerfile
 
       # GitHub repository (this repository will be used for the dev environment itself)
-      github:
-        repo: https://github.com/bikram20/do-app-platform-ai-dev-workflow
+      git:
         branch: main
-        deploy_on_push: true
+        repo_clone_url: https://github.com/bikram20/do-app-platform-ai-dev-workflow.git
 
       # Service type - worker with HTTP health check
       instance_count: 1
