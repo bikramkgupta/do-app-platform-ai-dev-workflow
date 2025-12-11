@@ -4,7 +4,7 @@
 #
 
 name: rails-todo-dev
-region: nyc
+region: syd1
 
 services:
   - name: rails-app

@@ -9,89 +9,96 @@ ingress:
       path:
         prefix: /
 name: nodejs-job-test
-region: nyc
+region: syd1
 services:
 - dockerfile_path: hot-reload-template/Dockerfile
   envs:
-  # === GitHub Repository Configuration ===
-  # This points to the hot-reload-template repo, NOT the app repo
-  # The app repo is configured via GITHUB_REPO_URL below
-
-  # === Application Repository (Your App) ===
-  # IMPORTANT: Update these values to point to YOUR app repository
-  # For testing in monorepo: Use GITHUB_REPO_FOLDER
-  # For testing standalone repo: Create repo and update GITHUB_REPO_URL
-  - key: GITHUB_REPO_URL
-    scope: RUN_AND_BUILD_TIME
-    value: https://github.com/bikram20/do-app-platform-ai-dev-workflow
-  - key: GITHUB_REPO_FOLDER
-    scope: RUN_AND_BUILD_TIME
-    value: hot-reload-template/app-examples/nodejs-job-test
-  - key: GITHUB_BRANCH
-    scope: RUN_AND_BUILD_TIME
-    value: main
-
-  # === Runtime Configuration ===
+  - key: APPPLAT_BASE_TEMPLATE
+    scope: RUN_TIME
+    value: hot-reload-template
+  - key: APPPLAT_TEMPLATE_TYPE
+    scope: RUN_TIME
+    value: base
+  - key: APPPLAT_TEMPLATE_VERSION
+    scope: RUN_TIME
+    value: 1.0.0
   - key: INSTALL_NODE
-    scope: RUN_AND_BUILD_TIME
+    scope: BUILD_TIME
     value: "true"
   - key: INSTALL_PYTHON
-    scope: RUN_AND_BUILD_TIME
+    scope: BUILD_TIME
     value: "false"
   - key: INSTALL_GOLANG
-    scope: RUN_AND_BUILD_TIME
+    scope: BUILD_TIME
     value: "false"
-
-  # === Application Startup ===
-  - key: DEV_START_COMMAND
-    scope: RUN_AND_BUILD_TIME
-    value: bash dev_startup.sh
+  - key: INSTALL_RUST
+    scope: BUILD_TIME
+    value: "false"
+  - key: INSTALL_RUBY
+    scope: BUILD_TIME
+    value: "false"
+  - key: INSTALL_POSTGRES
+    scope: BUILD_TIME
+    value: "false"
+  - key: INSTALL_MONGODB
+    scope: BUILD_TIME
+    value: "false"
+  - key: INSTALL_MYSQL
+    scope: BUILD_TIME
+    value: "false"
+  - key: GITHUB_REPO_URL
+    scope: RUN_TIME
+    value: https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow
+  - key: GITHUB_TOKEN
+    scope: RUN_TIME
+    type: SECRET
+    value: ""
+  - key: WORKSPACE_PATH
+    scope: RUN_TIME
+    value: /workspaces/app
   - key: GITHUB_SYNC_INTERVAL
-    scope: RUN_AND_BUILD_TIME
+    scope: RUN_TIME
     value: "30"
   - key: ENABLE_DEV_HEALTH
-    scope: RUN_AND_BUILD_TIME
+    scope: RUN_TIME
     value: "false"
-
-  # === Pre-Deploy Job Configuration ===
-  # Runs BEFORE app starts, must succeed (strict mode)
+  - key: DEV_START_COMMAND
+    scope: RUN_TIME
+    value: bash dev_startup.sh
+  - key: GITHUB_REPO_FOLDER
+    scope: RUN_TIME
+    value: hot-reload-template/app-examples/nodejs-job-test
+  - key: GITHUB_BRANCH
+    scope: RUN_TIME
+    value: main
   - key: PRE_DEPLOY_REPO_URL
-    scope: RUN_AND_BUILD_TIME
-    value: ""  # Empty = use main app repo
+    scope: RUN_TIME
+    value: ""
   - key: PRE_DEPLOY_FOLDER
-    scope: RUN_AND_BUILD_TIME
+    scope: RUN_TIME
     value: scripts/pre-deploy
   - key: PRE_DEPLOY_COMMAND
-    scope: RUN_AND_BUILD_TIME
+    scope: RUN_TIME
     value: bash migrate.sh
   - key: PRE_DEPLOY_TIMEOUT
-    scope: RUN_AND_BUILD_TIME
+    scope: RUN_TIME
     value: "60"
-
-  # === Post-Deploy Job Configuration ===
-  # Runs AFTER app starts, lenient mode (failure doesn't stop app)
   - key: POST_DEPLOY_REPO_URL
-    scope: RUN_AND_BUILD_TIME
-    value: ""  # Empty = use main app repo
+    scope: RUN_TIME
+    value: ""
   - key: POST_DEPLOY_FOLDER
-    scope: RUN_AND_BUILD_TIME
+    scope: RUN_TIME
     value: scripts/post-deploy
   - key: POST_DEPLOY_COMMAND
-    scope: RUN_AND_BUILD_TIME
+    scope: RUN_TIME
     value: bash seed.sh
   - key: POST_DEPLOY_TIMEOUT
-    scope: RUN_AND_BUILD_TIME
+    scope: RUN_TIME
     value: "60"
-
-  # === Repository Reference ===
-  # This repo contains the hot-reload template Dockerfile
   github:
     branch: main
-    repo: bikram20/do-app-platform-ai-dev-workflow
+    repo: bikramkgupta/do-app-platform-ai-dev-workflow
     deploy_on_push: true
-
-  # === Health Check ===
-  # Points to app's health endpoint (not dev_health since ENABLE_DEV_HEALTH=false)
   health_check:
     failure_threshold: 5
     http_path: /health
@@ -100,8 +107,6 @@ services:
     port: 8080
     success_threshold: 1
     timeout_seconds: 5
-
-  # === Service Configuration ===
   http_port: 8080
   instance_count: 1
   instance_size_slug: apps-s-1vcpu-1gb

@@ -7,7 +7,7 @@
 #
 
 name: dev-environment
-region: nyc
+region: syd1
 
 services:
   - name: dev-workspace
