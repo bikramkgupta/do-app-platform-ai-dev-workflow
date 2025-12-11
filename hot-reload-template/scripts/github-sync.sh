@@ -2,6 +2,13 @@
 # GitHub Repository Sync Script
 # Clones or syncs a GitHub repository to the workspace
 # Supports monorepos with subfolder syncing
+#
+# SYNC LOGIC:
+# Every SYNC_INTERVAL seconds:
+#   1. git fetch (lightweight - only updates refs)
+#   2. Compare local commit SHA vs remote commit SHA
+#   3. If different: pull changes, rsync (monorepo), execute deploy jobs
+#   4. If same: do nothing (no wasted I/O)
 
 set -euo pipefail
 
@@ -79,445 +86,159 @@ sync_monorepo_folder() {
     fi
 }
 
-# Create or update monorepo cache
-# This function can be called from other scripts (e.g., startup.sh)
-# Args:
-#   $1 - REPO_URL: The repository URL to clone
-#   $2 - REPO_FOLDER: The subfolder path within the repo
-#   $3 - TARGET_BRANCH: Optional branch to checkout (defaults to main/master)
-# Returns:
-#   0 on success, 1 on failure
-# Sets:
-#   MONOREPO_CACHE_DIR: Output variable with the cache directory path
-create_or_update_monorepo_cache() {
+# Get authenticated repo URL
+get_auth_url() {
     local repo_url="$1"
-    local repo_folder="$2"
-    local target_branch="${3:-}"
-    local auth_token="${GITHUB_TOKEN:-}"
+    local auth_token="${2:-}"
 
-    log_info "Monorepo cache creation/update requested"
-    log_info "Repository: $repo_url"
-    log_info "Folder: $repo_folder"
-    log_info "Branch: ${target_branch:-auto-detect}"
-
-    # Inject auth token if provided
-    local repo_url_with_auth="$repo_url"
-    if [ -n "$auth_token" ]; then
-        if [[ "$repo_url" == https://* ]]; then
-            local clean_url="${repo_url#https://}"
-            clean_url="${clean_url#*@}"
-            repo_url_with_auth="https://${auth_token}@${clean_url}"
-        fi
-    fi
-
-    # Create cache directory based on repo URL hash
-    local repo_hash=$(get_repo_hash "$repo_url")
-    local cache_dir="$MONOREPO_CACHE/$repo_hash"
-
-    log_info "Cache directory: $cache_dir"
-
-    # Check if repo already cloned to cache
-    if [ -d "$cache_dir/.git" ]; then
-        log_info "Monorepo cache exists. Pulling latest changes..."
-        cd "$cache_dir"
-
-        # Fetch latest changes
-        if git fetch origin 2>&1; then
-            # Determine which branch to use
-            local current_branch
-            if [ -n "$target_branch" ]; then
-                current_branch="$target_branch"
-                log_info "Switching to branch: $current_branch"
-                git checkout "$current_branch" 2>&1 || log_warn "Failed to checkout branch: $current_branch"
-            else
-                current_branch=$(git rev-parse --abbrev-ref HEAD)
-                log_info "Current branch: $current_branch"
-            fi
-
-            # Check if branch is behind before attempting pull
-            local local_commit=$(git rev-parse HEAD)
-            local remote_commit=$(git rev-parse "origin/$current_branch" 2>/dev/null || echo "")
-
-            if [ -n "$remote_commit" ] && [ "$local_commit" != "$remote_commit" ]; then
-                if git merge-base --is-ancestor "$local_commit" "$remote_commit" 2>/dev/null; then
-                    log_info "Branch is behind. Preparing for fast-forward..."
-                fi
-            fi
-
-            # Pull latest changes
-            if git pull origin "$current_branch" 2>&1; then
-                log_info "Successfully pulled latest changes to cache"
-            else
-                log_warn "Failed to pull changes. Continuing with current state."
-            fi
-        else
-            log_error "Failed to fetch from remote repository"
-            return 1
-        fi
+    if [ -n "$auth_token" ] && [[ "$repo_url" == https://* ]]; then
+        local clean_url="${repo_url#https://}"
+        clean_url="${clean_url#*@}"
+        echo "https://${auth_token}@${clean_url}"
     else
-        log_info "Cloning monorepo to cache for the first time..."
-
-        # Create cache parent directory
-        mkdir -p "$MONOREPO_CACHE"
-
-        # Clone the repository to cache
-        if git clone "$repo_url_with_auth" "$cache_dir" 2>&1; then
-            log_info "Successfully cloned monorepo to cache"
-            cd "$cache_dir"
-
-            # If we used a token, configure the remote to use it for future pulls
-            if [ -n "$auth_token" ]; then
-                git remote set-url origin "$repo_url_with_auth"
-            fi
-
-            # Checkout specific branch if requested
-            if [ -n "$target_branch" ]; then
-                log_info "Checking out branch: $target_branch"
-                git checkout "$target_branch" 2>&1 || log_warn "Failed to checkout branch: $target_branch"
-            fi
-        else
-            log_error "Failed to clone monorepo"
-            return 1
-        fi
+        echo "$repo_url"
     fi
+}
 
-    # Validate that the requested folder exists
-    if [ ! -d "$cache_dir/$repo_folder" ]; then
-        log_error "Folder '$repo_folder' not found in repository"
-        log_info "Available folders in repo root:"
-        ls -la "$cache_dir/" || true
+# Check if remote has new commits (fetch + compare)
+# Returns 0 if changes detected, 1 if no changes
+# Sets REMOTE_COMMIT variable with the remote commit SHA
+check_for_changes() {
+    local git_dir="$1"
+    local branch="$2"
+
+    cd "$git_dir"
+
+    # Fetch latest refs (lightweight operation)
+    if ! git fetch origin 2>&1; then
+        log_error "Failed to fetch from remote"
         return 1
     fi
 
-    # Set output variable for caller
-    MONOREPO_CACHE_DIR="$cache_dir"
-    log_info "Monorepo cache ready at: $MONOREPO_CACHE_DIR"
-    return 0
+    # Get current local commit
+    local local_commit=$(git rev-parse HEAD 2>/dev/null || echo "")
+
+    # Determine branch name
+    local target_branch="$branch"
+    if [ -z "$target_branch" ]; then
+        target_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    fi
+
+    # Get remote commit
+    REMOTE_COMMIT=$(git rev-parse "origin/$target_branch" 2>/dev/null || echo "")
+
+    if [ -z "$REMOTE_COMMIT" ]; then
+        log_warn "Could not determine remote commit for branch $target_branch"
+        return 1
+    fi
+
+    if [ "$local_commit" = "$REMOTE_COMMIT" ]; then
+        log_info "No changes detected (commit: ${local_commit:0:7})"
+        return 1  # No changes
+    else
+        log_info "Changes detected: ${local_commit:0:7} -> ${REMOTE_COMMIT:0:7}"
+        return 0  # Changes detected
+    fi
 }
 
-# Function to clone or sync repository
-sync_repo() {
-    if [ -z "$REPO_URL" ]; then
-        log_info "GITHUB_REPO_URL not set. Waiting for configuration..."
+# Pull changes after confirming there are updates
+pull_changes() {
+    local git_dir="$1"
+    local branch="$2"
+
+    cd "$git_dir"
+
+    local target_branch="$branch"
+    if [ -z "$target_branch" ]; then
+        target_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+    fi
+
+    # Ensure we're on the right branch
+    git checkout "$target_branch" 2>&1 || true
+
+    # Handle lock files that might block pull
+    for lockfile in package-lock.json go.sum uv.lock poetry.lock Gemfile.lock; do
+        if [ -f "$lockfile" ] && ! git diff --quiet "$lockfile" 2>/dev/null; then
+            log_info "Resetting local changes to $lockfile..."
+            git checkout -- "$lockfile" 2>/dev/null || rm -f "$lockfile"
+        fi
+    done
+
+    # Pull changes
+    if git pull origin "$target_branch" 2>&1; then
+        log_info "Successfully pulled changes"
+        return 0
+    else
+        log_warn "Pull failed, attempting reset..."
+        git reset --hard "origin/$target_branch" 2>&1 || true
         return 0
     fi
+}
 
-    # Inject auth token if provided
-    if [ -n "$AUTH_TOKEN" ]; then
-        # Handle HTTPS URL: insert token into URL
-        # Format: https://token@github.com/user/repo
-        if [[ "$REPO_URL" == https://* ]]; then
-            # Remove existing protocol and potential auth
-            CLEAN_URL="${REPO_URL#https://}"
-            CLEAN_URL="${CLEAN_URL#*@}"
-            REPO_URL_WITH_AUTH="https://${AUTH_TOKEN}@${CLEAN_URL}"
-        else
-            REPO_URL_WITH_AUTH="$REPO_URL"
+# Initial clone of repository
+initial_clone() {
+    local repo_url="$1"
+    local target_dir="$2"
+    local branch="$3"
+    local auth_token="${4:-}"
+
+    local auth_url=$(get_auth_url "$repo_url" "$auth_token")
+
+    log_info "Cloning repository for the first time..."
+
+    # Create parent directory
+    mkdir -p "$(dirname "$target_dir")"
+
+    # Clone
+    if git clone "$auth_url" "$target_dir" 2>&1; then
+        log_info "Successfully cloned repository"
+        cd "$target_dir"
+
+        # Configure remote with auth for future pulls
+        if [ -n "$auth_token" ]; then
+            git remote set-url origin "$auth_url"
         fi
+
+        # Checkout specific branch if requested
+        if [ -n "$branch" ]; then
+            log_info "Checking out branch: $branch"
+            git checkout "$branch" 2>&1 || log_warn "Failed to checkout branch: $branch"
+        fi
+
+        return 0
     else
-        REPO_URL_WITH_AUTH="$REPO_URL"
+        log_error "Failed to clone repository"
+        return 1
     fi
+}
 
-    log_info "Repository URL: $REPO_URL"
+# Clean up merge conflict markers in lock files
+cleanup_lock_files() {
+    local workspace="$1"
 
-    # Determine target branch
-    TARGET_BRANCH="$REPO_BRANCH"
-
-    # MONOREPO MODE: Clone to cache and sync specific folder
-    if [ -n "$REPO_FOLDER" ]; then
-        log_info "Monorepo mode enabled"
-
-        # Create or update monorepo cache using the reusable function
-        if ! create_or_update_monorepo_cache "$REPO_URL" "$REPO_FOLDER" "$TARGET_BRANCH"; then
-            log_error "Failed to create/update monorepo cache"
-            return 1
-        fi
-
-        # MONOREPO_CACHE_DIR is set by create_or_update_monorepo_cache
-        CACHE_DIR="$MONOREPO_CACHE_DIR"
-
-        # Sync the specific folder to workspace
-        if sync_monorepo_folder "$CACHE_DIR" "$REPO_FOLDER" "$WORKSPACE"; then
-            log_info "Monorepo folder synced successfully"
-        else
-            log_error "Failed to sync monorepo folder"
-            return 1
-        fi
-
-        # Show current commit
-        if [ -d "$CACHE_DIR/.git" ]; then
-            cd "$CACHE_DIR"
-            CURRENT_COMMIT=$(git rev-parse --short HEAD)
-            COMMIT_MSG=$(git log -1 --pretty=%B)
-            log_info "Current commit: $CURRENT_COMMIT - $COMMIT_MSG"
-        fi
-
-    # REGULAR MODE: Clone directly to workspace
-    else
-        log_info "Regular mode (single repository)"
-        log_info "Workspace: $WORKSPACE"
-        log_info "Target branch: ${TARGET_BRANCH:-auto-detect}"
-
-        if [ -d "$WORKSPACE/.git" ]; then
-            log_info "Repository already exists. Pulling latest changes..."
-            cd "$WORKSPACE"
-
-            # Fetch latest changes
-            if git fetch origin 2>&1; then
-                # Determine which branch to use
-                if [ -n "$TARGET_BRANCH" ]; then
-                    CURRENT_BRANCH="$TARGET_BRANCH"
-                    log_info "Switching to branch: $CURRENT_BRANCH"
-                    git checkout "$CURRENT_BRANCH" 2>&1 || log_warn "Failed to checkout branch: $CURRENT_BRANCH"
-                else
-                    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-                    log_info "Current branch: $CURRENT_BRANCH"
-                fi
-
-                # Check if branch is behind before attempting pull
-                LOCAL_COMMIT=$(git rev-parse HEAD)
-                REMOTE_COMMIT=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null || echo "")
-                
-                if [ -n "$REMOTE_COMMIT" ] && [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
-                    # Check if we can fast-forward (branch is behind)
-                    if git merge-base --is-ancestor "$LOCAL_COMMIT" "$REMOTE_COMMIT" 2>/dev/null; then
-                        log_info "Branch is behind. Local changes detected. Preparing for fast-forward..."
-                        
-                        # Proactively handle lock files since they'll be regenerated anyway
-                        # This prevents pull failures due to local modifications
-                        LOCK_FILES_MODIFIED=false
-                        for lockfile in package-lock.json go.sum uv.lock poetry.lock Gemfile.lock; do
-                            if git diff --quiet "$lockfile" 2>/dev/null; then
-                                continue  # File not modified
-                            fi
-                            if [ -f "$lockfile" ]; then
-                                log_info "Detected local changes to $lockfile. Removing to allow fast-forward (will be regenerated)..."
-                                git checkout -- "$lockfile" 2>/dev/null || rm -f "$lockfile"
-                                LOCK_FILES_MODIFIED=true
-                            fi
-                        done
-                        
-                        # Also handle other common generated files
-                        for genfile in .npmrc node_modules/.package-lock.json; do
-                            if [ -f "$genfile" ] && ! git diff --quiet "$genfile" 2>/dev/null 2>&1; then
-                                log_info "Resetting local changes to $genfile..."
-                                git checkout -- "$genfile" 2>/dev/null || true
-                            fi
-                        done
-                    fi
-                fi
-                
-                # Pull latest changes
-                PULL_OUTPUT=$(git pull origin "$CURRENT_BRANCH" 2>&1)
-                PULL_EXIT_CODE=$?
-                if [ "$PULL_EXIT_CODE" -eq 0 ]; then
-                    log_info "Successfully pulled latest changes"
-                else
-                    # Check if the error is due to merge conflicts in lock files
-                    if echo "$PULL_OUTPUT" | grep -q "would be overwritten by merge"; then
-                        log_warn "Merge conflict detected in tracked files. Attempting to resolve lock file conflicts..."
-                        # Detect and resolve common lock file conflicts
-                        if echo "$PULL_OUTPUT" | grep -q "package-lock.json"; then
-                            log_info "Resolving package-lock.json conflict..."
-                            git checkout -- package-lock.json 2>/dev/null || rm -f package-lock.json 2>/dev/null || true
-                        fi
-                        if echo "$PULL_OUTPUT" | grep -q "go.sum"; then
-                            log_info "Resolving go.sum conflict..."
-                            git checkout -- go.sum 2>/dev/null || rm -f go.sum 2>/dev/null || true
-                        fi
-                        if echo "$PULL_OUTPUT" | grep -q "uv.lock"; then
-                            log_info "Resolving uv.lock conflict..."
-                            git checkout -- uv.lock 2>/dev/null || rm -f uv.lock 2>/dev/null || true
-                        fi
-                        if echo "$PULL_OUTPUT" | grep -q "poetry.lock"; then
-                            log_info "Resolving poetry.lock conflict..."
-                            git checkout -- poetry.lock 2>/dev/null || rm -f poetry.lock 2>/dev/null || true
-                        fi
-                        if echo "$PULL_OUTPUT" | grep -q "Gemfile.lock"; then
-                            log_info "Resolving Gemfile.lock conflict..."
-                            git checkout -- Gemfile.lock 2>/dev/null || rm -f Gemfile.lock 2>/dev/null || true
-                        fi
-                        # Try pull again after resolving conflicts
-                        if git pull origin "$CURRENT_BRANCH" 2>&1; then
-                            log_info "Successfully pulled after resolving lock file conflicts"
-                        else
-                            log_warn "Failed to pull changes even after resolving conflicts. Repository may have other local modifications."
-                        fi
-                    elif echo "$PULL_OUTPUT" | grep -qi "cannot pull with rebase\|cannot pull\|your local changes"; then
-                        # Another common error - local changes preventing pull
-                        log_warn "Local changes preventing pull. Attempting to reset lock files and retry..."
-                        for lockfile in package-lock.json go.sum uv.lock poetry.lock Gemfile.lock; do
-                            if [ -f "$lockfile" ] && ! git diff --quiet "$lockfile" 2>/dev/null; then
-                                log_info "Resetting $lockfile to allow pull..."
-                                git checkout -- "$lockfile" 2>/dev/null || rm -f "$lockfile"
-                            fi
-                        done
-                        # Try pull again
-                        if git pull origin "$CURRENT_BRANCH" 2>&1; then
-                            log_info "Successfully pulled after resetting lock files"
-                        else
-                            log_warn "Failed to pull changes. Repository may have other local modifications."
-                        fi
-                    else
-                        log_warn "Failed to pull changes: $PULL_OUTPUT"
-                    fi
-                fi
-            else
-                log_error "Failed to fetch from remote repository"
-            fi
-        else
-            log_info "Cloning repository for the first time..."
-
-            # Create workspace directory if it doesn't exist
-            mkdir -p "$WORKSPACE"
-
-            # Clean up any existing files (image ships with template sources)
-            if [ "$(ls -A "$WORKSPACE")" ]; then
-                log_warn "Workspace not empty. Cleaning existing files before cloning..."
-                rm -rf "${WORKSPACE:?}/"* "${WORKSPACE:?}"/.[!.]* "${WORKSPACE:?}"/..?*
-            fi
-
-            # Clone the repository
-            if git clone "$REPO_URL_WITH_AUTH" "$WORKSPACE" 2>&1; then
-                log_info "Successfully cloned repository"
-                cd "$WORKSPACE"
-
-                # If we used a token, configure the remote to use it for future pulls
-                if [ -n "$AUTH_TOKEN" ]; then
-                    git remote set-url origin "$REPO_URL_WITH_AUTH"
-                fi
-
-                # Checkout specific branch if requested
-                if [ -n "$TARGET_BRANCH" ]; then
-                    log_info "Checking out branch: $TARGET_BRANCH"
-                    git checkout "$TARGET_BRANCH" 2>&1 || log_warn "Failed to checkout branch: $TARGET_BRANCH"
-                fi
-            else
-                log_error "Failed to clone repository"
-                return 1
+    cd "$workspace"
+    for lockfile in package-lock.json go.sum uv.lock poetry.lock Gemfile.lock; do
+        if [ -f "$lockfile" ]; then
+            if grep -q "^<<<<<<< " "$lockfile" 2>/dev/null || \
+               grep -q "^======= " "$lockfile" 2>/dev/null || \
+               grep -q "^>>>>>>> " "$lockfile" 2>/dev/null; then
+                log_warn "Detected merge conflict markers in $lockfile. Removing..."
+                rm -f "$lockfile"
             fi
         fi
+    done
+}
 
-        # Check for any remaining merge conflict markers in lock files
-        if [ -d "$WORKSPACE/.git" ]; then
-            cd "$WORKSPACE"
-            for lockfile in package-lock.json go.sum uv.lock poetry.lock Gemfile.lock; do
-                if [ -f "$lockfile" ]; then
-                    if grep -q "^<<<<<<< " "$lockfile" 2>/dev/null || \
-                       grep -q "^======= " "$lockfile" 2>/dev/null || \
-                       grep -q "^>>>>>>> " "$lockfile" 2>/dev/null; then
-                        log_warn "Detected merge conflict markers in $lockfile. Removing to allow regeneration..."
-                        rm -f "$lockfile"
-                    fi
-                fi
-            done
-        fi
+# Show current commit info
+show_commit_info() {
+    local git_dir="$1"
 
-        # Show current commit
-        if [ -d "$WORKSPACE/.git" ]; then
-            CURRENT_COMMIT=$(git rev-parse --short HEAD)
-            COMMIT_MSG=$(git log -1 --pretty=%B)
-            log_info "Current commit: $CURRENT_COMMIT - $COMMIT_MSG"
-        fi
-
-        # Auto-install dependencies if dependency files changed
-        if [ -d "$WORKSPACE/.git" ]; then
-            cd "$WORKSPACE"
-            
-            # Ruby/Bundler: Check if Gemfile or Gemfile.lock changed
-            if [ -f "Gemfile" ]; then
-                GEMFILE_HASH_FILE="/tmp/github_sync_gemfile_hash.txt"
-                CURRENT_GEMFILE_HASH=$(md5sum Gemfile 2>/dev/null | cut -d' ' -f1 || echo "")
-                
-                if [ -n "$CURRENT_GEMFILE_HASH" ]; then
-                    PREVIOUS_HASH=$(cat "$GEMFILE_HASH_FILE" 2>/dev/null || echo "")
-                    # Also check if Gemfile.lock is missing or has conflicts (indicates need for bundle install)
-                    NEEDS_BUNDLE_INSTALL=false
-                    if [ "$CURRENT_GEMFILE_HASH" != "$PREVIOUS_HASH" ]; then
-                        NEEDS_BUNDLE_INSTALL=true
-                        log_info "Detected Gemfile changes. Running bundle install..."
-                    elif [ ! -f "Gemfile.lock" ]; then
-                        NEEDS_BUNDLE_INSTALL=true
-                        log_info "Gemfile.lock missing. Running bundle install..."
-                    elif grep -q "^<<<<<<< " "Gemfile.lock" 2>/dev/null || \
-                         grep -q "^=======$" "Gemfile.lock" 2>/dev/null || \
-                         grep -q "^>>>>>>> " "Gemfile.lock" 2>/dev/null; then
-                        NEEDS_BUNDLE_INSTALL=true
-                        log_info "Gemfile.lock has merge conflicts. Running bundle install..."
-                    fi
-                    
-                    if [ "$NEEDS_BUNDLE_INSTALL" = "true" ]; then
-                        
-                        # Setup Ruby environment if rbenv is available
-                        # Try multiple common locations for rbenv
-                        RBENV_ROOT=""
-                        for rbenv_path in "$HOME/.rbenv" "/home/devcontainer/.rbenv" "/root/.rbenv"; do
-                            if [ -d "$rbenv_path" ] && [ -x "$rbenv_path/bin/rbenv" ]; then
-                                RBENV_ROOT="$rbenv_path"
-                                break
-                            fi
-                        done
-                        
-                        RUBY_READY=false
-                        if [ -n "$RBENV_ROOT" ]; then
-                            export RBENV_ROOT
-                            export PATH="$RBENV_ROOT/bin:$RBENV_ROOT/shims:$PATH"
-                            eval "$($RBENV_ROOT/bin/rbenv init - bash)" 2>/dev/null || true
-                            
-                            # Check if Ruby and bundle actually work (not just exist)
-                            if command -v ruby >/dev/null 2>&1 && command -v bundle >/dev/null 2>&1; then
-                                # Test that Ruby actually executes (not broken paths)
-                                if ruby -v >/dev/null 2>&1 && bundle --version >/dev/null 2>&1; then
-                                    RUBY_READY=true
-                                fi
-                            fi
-                        elif command -v ruby >/dev/null 2>&1 && command -v bundle >/dev/null 2>&1; then
-                            # System Ruby/bundler - test they work
-                            if ruby -v >/dev/null 2>&1 && bundle --version >/dev/null 2>&1; then
-                                RUBY_READY=true
-                                log_info "Using system Ruby/bundler"
-                            fi
-                        fi
-                        
-                        if [ "$RUBY_READY" = "true" ]; then
-                            # Handle Gemfile.lock merge conflicts
-                            if [ -f "Gemfile.lock" ]; then
-                                if grep -q "^<<<<<<< " "Gemfile.lock" 2>/dev/null || \
-                                   grep -q "^=======$" "Gemfile.lock" 2>/dev/null || \
-                                   grep -q "^>>>>>>> " "Gemfile.lock" 2>/dev/null; then
-                                    log_warn "Detected merge conflict markers in Gemfile.lock. Removing to allow regeneration..."
-                                    rm -f Gemfile.lock
-                                fi
-                            fi
-                            
-                            # Run bundle install
-                            if bundle install --jobs=4 --retry=3 2>&1; then
-                                log_info "Bundle install completed successfully"
-                                echo "$CURRENT_GEMFILE_HASH" > "$GEMFILE_HASH_FILE"
-                            else
-                                log_warn "Bundle install failed. Attempting hard rebuild..."
-                                rm -f Gemfile.lock
-                                rm -rf vendor/bundle .bundle 2>/dev/null || true
-                                if bundle install --jobs=4 --retry=3 2>&1; then
-                                    log_info "Bundle install completed after hard rebuild"
-                                    echo "$CURRENT_GEMFILE_HASH" > "$GEMFILE_HASH_FILE"
-                                else
-                                    log_warn "Bundle install failed even after hard rebuild"
-                                    log_warn "  (dev_startup.sh will retry on next app restart)"
-                                fi
-                            fi
-                        else
-                            log_warn "Ruby/bundler not ready. Skipping bundle install."
-                            log_warn "  (Ruby may still be installing. dev_startup.sh will handle bundle install.)"
-                        fi
-                    fi
-                fi
-            fi
-        fi
+    if [ -d "$git_dir/.git" ]; then
+        cd "$git_dir"
+        local commit=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        local msg=$(git log -1 --pretty=%B 2>/dev/null | head -1 || echo "")
+        log_info "Current commit: $commit - $msg"
     fi
-
-    # Execute deploy jobs if commit changed
-    execute_deploy_jobs
 }
 
 # Execute deploy jobs when commit changes
@@ -532,7 +253,7 @@ execute_deploy_jobs() {
 
     trap 'rm -rf "$lock_dir"' EXIT
 
-    # Check if commit actually changed
+    # Check if commit actually changed (via job-manager)
     if ! /usr/local/bin/job-manager.sh check_commit_changed; then
         log_info "Repository commit unchanged. Skipping deploy jobs."
         rm -rf "$lock_dir"
@@ -573,6 +294,97 @@ execute_deploy_jobs() {
     trap - EXIT
 }
 
+# Main sync function - called every SYNC_INTERVAL
+sync_repo() {
+    if [ -z "$REPO_URL" ]; then
+        log_info "GITHUB_REPO_URL not set. Waiting for configuration..."
+        return 0
+    fi
+
+    local auth_url=$(get_auth_url "$REPO_URL" "$AUTH_TOKEN")
+    log_info "Repository URL: $REPO_URL"
+
+    # ========================================
+    # MONOREPO MODE
+    # ========================================
+    if [ -n "$REPO_FOLDER" ]; then
+        log_info "Monorepo mode enabled"
+
+        local repo_hash=$(get_repo_hash "$REPO_URL")
+        local cache_dir="$MONOREPO_CACHE/$repo_hash"
+
+        # Initial clone if cache doesn't exist
+        if [ ! -d "$cache_dir/.git" ]; then
+            if ! initial_clone "$REPO_URL" "$cache_dir" "$REPO_BRANCH" "$AUTH_TOKEN"; then
+                return 1
+            fi
+
+            # First time: always sync folder
+            if ! sync_monorepo_folder "$cache_dir" "$REPO_FOLDER" "$WORKSPACE"; then
+                log_error "Failed to sync monorepo folder"
+                return 1
+            fi
+
+            show_commit_info "$cache_dir"
+            execute_deploy_jobs
+            return 0
+        fi
+
+        # Check for changes (fetch + compare commits)
+        if check_for_changes "$cache_dir" "$REPO_BRANCH"; then
+            # Changes detected - pull and sync
+            log_info "Pulling changes..."
+            pull_changes "$cache_dir" "$REPO_BRANCH"
+
+            # Sync the specific folder to workspace
+            if ! sync_monorepo_folder "$cache_dir" "$REPO_FOLDER" "$WORKSPACE"; then
+                log_error "Failed to sync monorepo folder"
+                return 1
+            fi
+
+            show_commit_info "$cache_dir"
+            execute_deploy_jobs
+        fi
+        # If no changes, do nothing (already logged in check_for_changes)
+
+    # ========================================
+    # REGULAR MODE (single repository)
+    # ========================================
+    else
+        log_info "Regular mode (single repository)"
+
+        # Initial clone if workspace doesn't exist
+        if [ ! -d "$WORKSPACE/.git" ]; then
+            # Clean up any existing files
+            if [ -d "$WORKSPACE" ] && [ "$(ls -A "$WORKSPACE" 2>/dev/null)" ]; then
+                log_warn "Workspace not empty. Cleaning before clone..."
+                rm -rf "${WORKSPACE:?}/"* "${WORKSPACE:?}"/.[!.]* "${WORKSPACE:?}"/..?* 2>/dev/null || true
+            fi
+
+            if ! initial_clone "$REPO_URL" "$WORKSPACE" "$REPO_BRANCH" "$AUTH_TOKEN"; then
+                return 1
+            fi
+
+            cleanup_lock_files "$WORKSPACE"
+            show_commit_info "$WORKSPACE"
+            execute_deploy_jobs
+            return 0
+        fi
+
+        # Check for changes (fetch + compare commits)
+        if check_for_changes "$WORKSPACE" "$REPO_BRANCH"; then
+            # Changes detected - pull
+            log_info "Pulling changes..."
+            pull_changes "$WORKSPACE" "$REPO_BRANCH"
+
+            cleanup_lock_files "$WORKSPACE"
+            show_commit_info "$WORKSPACE"
+            execute_deploy_jobs
+        fi
+        # If no changes, do nothing (already logged in check_for_changes)
+    fi
+}
+
 # Main sync loop
 main() {
     log_info "GitHub Sync Service Starting..."
@@ -586,7 +398,7 @@ main() {
         log_info "  - Branch: ${REPO_BRANCH:-auto-detect}"
     fi
 
-    # Initial sync
+    # Initial sync (always runs on startup)
     sync_repo
 
     # Continuous sync loop
@@ -597,8 +409,75 @@ main() {
     done
 }
 
+# Create or update monorepo cache (exported for use by startup.sh)
+# This function ensures the cache exists and is up to date
+create_or_update_monorepo_cache() {
+    local repo_url="$1"
+    local repo_folder="$2"
+    local target_branch="${3:-}"
+    local auth_token="${GITHUB_TOKEN:-}"
+
+    log_info "Monorepo cache creation/update requested"
+    log_info "Repository: $repo_url"
+    log_info "Folder: $repo_folder"
+    log_info "Branch: ${target_branch:-auto-detect}"
+
+    local auth_url=$(get_auth_url "$repo_url" "$auth_token")
+    local repo_hash=$(get_repo_hash "$repo_url")
+    local cache_dir="$MONOREPO_CACHE/$repo_hash"
+
+    log_info "Cache directory: $cache_dir"
+
+    if [ -d "$cache_dir/.git" ]; then
+        log_info "Monorepo cache exists. Pulling latest changes..."
+        cd "$cache_dir"
+
+        git fetch origin 2>&1 || true
+
+        local branch="$target_branch"
+        if [ -z "$branch" ]; then
+            branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+        fi
+
+        git checkout "$branch" 2>&1 || true
+        git pull origin "$branch" 2>&1 || log_warn "Pull failed, using current state"
+
+        log_info "Successfully pulled latest changes to cache"
+    else
+        log_info "Cloning monorepo to cache for the first time..."
+        mkdir -p "$MONOREPO_CACHE"
+
+        if git clone "$auth_url" "$cache_dir" 2>&1; then
+            log_info "Successfully cloned monorepo to cache"
+            cd "$cache_dir"
+
+            if [ -n "$auth_token" ]; then
+                git remote set-url origin "$auth_url"
+            fi
+
+            if [ -n "$target_branch" ]; then
+                log_info "Checking out branch: $target_branch"
+                git checkout "$target_branch" 2>&1 || true
+            fi
+        else
+            log_error "Failed to clone monorepo"
+            return 1
+        fi
+    fi
+
+    # Validate folder exists
+    if [ ! -d "$cache_dir/$repo_folder" ]; then
+        log_error "Folder '$repo_folder' not found in repository"
+        ls -la "$cache_dir/" || true
+        return 1
+    fi
+
+    MONOREPO_CACHE_DIR="$cache_dir"
+    log_info "Monorepo cache ready at: $MONOREPO_CACHE_DIR"
+    return 0
+}
+
 # Run main function (only if not being sourced)
-# This allows other scripts to source this file to use helper functions
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     main
 fi
