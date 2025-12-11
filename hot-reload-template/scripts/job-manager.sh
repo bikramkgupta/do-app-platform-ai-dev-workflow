@@ -241,9 +241,12 @@ execute_job() {
             return 1
         fi
 
-        job_exec_dir="$cache_dir"
+        # Base directory includes REPO_FOLDER for monorepo pattern
+        job_exec_dir="$cache_dir/$REPO_FOLDER"
+
+        # Add job folder if specified
         if [ -n "$job_folder" ]; then
-            job_exec_dir="$cache_dir/$job_folder"
+            job_exec_dir="$job_exec_dir/$job_folder"
         fi
 
     # Pattern 3: Same-repo (job_repo_url empty, regular mode)

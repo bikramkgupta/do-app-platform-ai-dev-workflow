@@ -68,6 +68,122 @@ sync_monorepo_folder() {
     fi
 }
 
+# Create or update monorepo cache
+# This function can be called from other scripts (e.g., startup.sh)
+# Args:
+#   $1 - REPO_URL: The repository URL to clone
+#   $2 - REPO_FOLDER: The subfolder path within the repo
+#   $3 - TARGET_BRANCH: Optional branch to checkout (defaults to main/master)
+# Returns:
+#   0 on success, 1 on failure
+# Sets:
+#   MONOREPO_CACHE_DIR: Output variable with the cache directory path
+create_or_update_monorepo_cache() {
+    local repo_url="$1"
+    local repo_folder="$2"
+    local target_branch="${3:-}"
+    local auth_token="${GITHUB_TOKEN:-}"
+
+    log_info "Monorepo cache creation/update requested"
+    log_info "Repository: $repo_url"
+    log_info "Folder: $repo_folder"
+    log_info "Branch: ${target_branch:-auto-detect}"
+
+    # Inject auth token if provided
+    local repo_url_with_auth="$repo_url"
+    if [ -n "$auth_token" ]; then
+        if [[ "$repo_url" == https://* ]]; then
+            local clean_url="${repo_url#https://}"
+            clean_url="${clean_url#*@}"
+            repo_url_with_auth="https://${auth_token}@${clean_url}"
+        fi
+    fi
+
+    # Create cache directory based on repo URL hash
+    local repo_hash=$(get_repo_hash "$repo_url")
+    local cache_dir="$MONOREPO_CACHE/$repo_hash"
+
+    log_info "Cache directory: $cache_dir"
+
+    # Check if repo already cloned to cache
+    if [ -d "$cache_dir/.git" ]; then
+        log_info "Monorepo cache exists. Pulling latest changes..."
+        cd "$cache_dir"
+
+        # Fetch latest changes
+        if git fetch origin 2>&1; then
+            # Determine which branch to use
+            local current_branch
+            if [ -n "$target_branch" ]; then
+                current_branch="$target_branch"
+                log_info "Switching to branch: $current_branch"
+                git checkout "$current_branch" 2>&1 || log_warn "Failed to checkout branch: $current_branch"
+            else
+                current_branch=$(git rev-parse --abbrev-ref HEAD)
+                log_info "Current branch: $current_branch"
+            fi
+
+            # Check if branch is behind before attempting pull
+            local local_commit=$(git rev-parse HEAD)
+            local remote_commit=$(git rev-parse "origin/$current_branch" 2>/dev/null || echo "")
+
+            if [ -n "$remote_commit" ] && [ "$local_commit" != "$remote_commit" ]; then
+                if git merge-base --is-ancestor "$local_commit" "$remote_commit" 2>/dev/null; then
+                    log_info "Branch is behind. Preparing for fast-forward..."
+                fi
+            fi
+
+            # Pull latest changes
+            if git pull origin "$current_branch" 2>&1; then
+                log_info "Successfully pulled latest changes to cache"
+            else
+                log_warn "Failed to pull changes. Continuing with current state."
+            fi
+        else
+            log_error "Failed to fetch from remote repository"
+            return 1
+        fi
+    else
+        log_info "Cloning monorepo to cache for the first time..."
+
+        # Create cache parent directory
+        mkdir -p "$MONOREPO_CACHE"
+
+        # Clone the repository to cache
+        if git clone "$repo_url_with_auth" "$cache_dir" 2>&1; then
+            log_info "Successfully cloned monorepo to cache"
+            cd "$cache_dir"
+
+            # If we used a token, configure the remote to use it for future pulls
+            if [ -n "$auth_token" ]; then
+                git remote set-url origin "$repo_url_with_auth"
+            fi
+
+            # Checkout specific branch if requested
+            if [ -n "$target_branch" ]; then
+                log_info "Checking out branch: $target_branch"
+                git checkout "$target_branch" 2>&1 || log_warn "Failed to checkout branch: $target_branch"
+            fi
+        else
+            log_error "Failed to clone monorepo"
+            return 1
+        fi
+    fi
+
+    # Validate that the requested folder exists
+    if [ ! -d "$cache_dir/$repo_folder" ]; then
+        log_error "Folder '$repo_folder' not found in repository"
+        log_info "Available folders in repo root:"
+        ls -la "$cache_dir/" || true
+        return 1
+    fi
+
+    # Set output variable for caller
+    MONOREPO_CACHE_DIR="$cache_dir"
+    log_info "Monorepo cache ready at: $MONOREPO_CACHE_DIR"
+    return 0
+}
+
 # Function to clone or sync repository
 sync_repo() {
     if [ -z "$REPO_URL" ]; then
@@ -99,77 +215,15 @@ sync_repo() {
     # MONOREPO MODE: Clone to cache and sync specific folder
     if [ -n "$REPO_FOLDER" ]; then
         log_info "Monorepo mode enabled"
-        log_info "Target folder: $REPO_FOLDER"
-        log_info "Target branch: ${TARGET_BRANCH:-auto-detect}"
 
-        # Create cache directory based on repo URL hash
-        REPO_HASH=$(get_repo_hash "$REPO_URL")
-        CACHE_DIR="$MONOREPO_CACHE/$REPO_HASH"
-
-        log_info "Cache directory: $CACHE_DIR"
-
-        # Check if repo already cloned to cache
-        if [ -d "$CACHE_DIR/.git" ]; then
-            log_info "Monorepo cache exists. Pulling latest changes..."
-            cd "$CACHE_DIR"
-
-            # Fetch latest changes
-            if git fetch origin 2>&1; then
-                # Determine which branch to use
-                if [ -n "$TARGET_BRANCH" ]; then
-                    CURRENT_BRANCH="$TARGET_BRANCH"
-                    log_info "Switching to branch: $CURRENT_BRANCH"
-                    git checkout "$CURRENT_BRANCH" 2>&1 || log_warn "Failed to checkout branch: $CURRENT_BRANCH"
-                else
-                    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-                    log_info "Current branch: $CURRENT_BRANCH"
-                fi
-
-                # Check if branch is behind before attempting pull
-                LOCAL_COMMIT=$(git rev-parse HEAD)
-                REMOTE_COMMIT=$(git rev-parse "origin/$CURRENT_BRANCH" 2>/dev/null || echo "")
-                
-                if [ -n "$REMOTE_COMMIT" ] && [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
-                    if git merge-base --is-ancestor "$LOCAL_COMMIT" "$REMOTE_COMMIT" 2>/dev/null; then
-                        log_info "Branch is behind. Preparing for fast-forward..."
-                    fi
-                fi
-                
-                # Pull latest changes
-                if git pull origin "$CURRENT_BRANCH" 2>&1; then
-                    log_info "Successfully pulled latest changes to cache"
-                else
-                    log_warn "Failed to pull changes. Will attempt folder sync anyway."
-                fi
-            else
-                log_error "Failed to fetch from remote repository"
-            fi
-        else
-            log_info "Cloning monorepo to cache for the first time..."
-
-            # Create cache parent directory
-            mkdir -p "$MONOREPO_CACHE"
-
-            # Clone the repository to cache
-            if git clone "$REPO_URL_WITH_AUTH" "$CACHE_DIR" 2>&1; then
-                log_info "Successfully cloned monorepo to cache"
-                cd "$CACHE_DIR"
-
-                # If we used a token, configure the remote to use it for future pulls
-                if [ -n "$AUTH_TOKEN" ]; then
-                    git remote set-url origin "$REPO_URL_WITH_AUTH"
-                fi
-
-                # Checkout specific branch if requested
-                if [ -n "$TARGET_BRANCH" ]; then
-                    log_info "Checking out branch: $TARGET_BRANCH"
-                    git checkout "$TARGET_BRANCH" 2>&1 || log_warn "Failed to checkout branch: $TARGET_BRANCH"
-                fi
-            else
-                log_error "Failed to clone monorepo"
-                return 1
-            fi
+        # Create or update monorepo cache using the reusable function
+        if ! create_or_update_monorepo_cache "$REPO_URL" "$REPO_FOLDER" "$TARGET_BRANCH"; then
+            log_error "Failed to create/update monorepo cache"
+            return 1
         fi
+
+        # MONOREPO_CACHE_DIR is set by create_or_update_monorepo_cache
+        CACHE_DIR="$MONOREPO_CACHE_DIR"
 
         # Sync the specific folder to workspace
         if sync_monorepo_folder "$CACHE_DIR" "$REPO_FOLDER" "$WORKSPACE"; then
@@ -532,5 +586,8 @@ main() {
     done
 }
 
-# Run main function
-main
+# Run main function (only if not being sourced)
+# This allows other scripts to source this file to use helper functions
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    main
+fi

@@ -2,7 +2,7 @@
 
 **Deploy once, iterate fast.** This template continuously syncs your GitHub repo and runs your dev server—no rebuild loop.
 
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow/tree/main&refcode=2ede236d8435)
 
 ## How It Works
 

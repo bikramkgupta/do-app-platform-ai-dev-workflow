@@ -87,6 +87,26 @@ else
 fi
 echo ""
 
+# Create monorepo cache if needed (for PRE_DEPLOY job)
+if [ -n "${GITHUB_REPO_FOLDER:-}" ] && [ -n "${PRE_DEPLOY_COMMAND:-}" ]; then
+    echo "=========================================="
+    echo "Preparing Monorepo Cache for PRE_DEPLOY..."
+    echo "=========================================="
+    echo ""
+
+    # Source github-sync functions
+    source /usr/local/bin/github-sync.sh
+
+    # Create cache (idempotent - safe to call multiple times)
+    if create_or_update_monorepo_cache "$REPO_URL" "${GITHUB_REPO_FOLDER}" "${GITHUB_BRANCH:-}"; then
+        echo "✓ Monorepo cache ready: $MONOREPO_CACHE_DIR"
+    else
+        echo "ERROR: Failed to create monorepo cache. PRE_DEPLOY job cannot execute."
+        exit 1
+    fi
+    echo ""
+fi
+
 # Execute PRE_DEPLOY job if configured (initial bootstrap)
 if [ -n "${PRE_DEPLOY_COMMAND:-}" ]; then
     echo "=========================================="
