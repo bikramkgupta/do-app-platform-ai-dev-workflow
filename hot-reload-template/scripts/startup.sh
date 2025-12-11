@@ -87,10 +87,11 @@ else
 fi
 echo ""
 
-# Create monorepo cache if needed (for PRE_DEPLOY job)
-if [ -n "${GITHUB_REPO_FOLDER:-}" ] && [ -n "${PRE_DEPLOY_COMMAND:-}" ]; then
+# Create monorepo cache if needed (for apps in monorepo subfolders)
+# This must happen BEFORE DEV_START_COMMAND runs so dev_startup.sh is available
+if [ -n "${GITHUB_REPO_FOLDER:-}" ]; then
     echo "=========================================="
-    echo "Preparing Monorepo Cache for PRE_DEPLOY..."
+    echo "Preparing Monorepo Subfolder..."
     echo "=========================================="
     echo ""
 
@@ -100,8 +101,17 @@ if [ -n "${GITHUB_REPO_FOLDER:-}" ] && [ -n "${PRE_DEPLOY_COMMAND:-}" ]; then
     # Create cache (idempotent - safe to call multiple times)
     if create_or_update_monorepo_cache "$REPO_URL" "${GITHUB_REPO_FOLDER}" "${GITHUB_BRANCH:-}"; then
         echo "✓ Monorepo cache ready: $MONOREPO_CACHE_DIR"
+
+        # Sync the subfolder to workspace so dev_startup.sh is available
+        WORKSPACE="${WORKSPACE_PATH:-/workspaces/app}"
+        if sync_monorepo_folder "$MONOREPO_CACHE_DIR" "${GITHUB_REPO_FOLDER}" "$WORKSPACE"; then
+            echo "✓ Monorepo subfolder synced to $WORKSPACE"
+        else
+            echo "ERROR: Failed to sync monorepo subfolder to workspace."
+            exit 1
+        fi
     else
-        echo "ERROR: Failed to create monorepo cache. PRE_DEPLOY job cannot execute."
+        echo "ERROR: Failed to create monorepo cache."
         exit 1
     fi
     echo ""
