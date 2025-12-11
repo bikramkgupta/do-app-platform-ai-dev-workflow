@@ -7,11 +7,11 @@ spec:
   # repository and runs your application for fast iteration cycles.
   #
 
-  name: dev-environment
+  name: custom-dev-environment
   region: syd1
 
   services:
-    - name: dev-workspace
+    - name: custom-workspace
       # Use Dockerfile from repository
       dockerfile_path: hot-reload-template/Dockerfile
 
@@ -24,23 +24,23 @@ spec:
       instance_count: 1
       instance_size_slug: apps-s-1vcpu-1gb
 
-      # Internal port for application
-      #internal_ports:
-      #- 8080
+      # Internal ports: 8080 for welcome page, 9090 for dev health server
+      internal_ports:
+        - 9090
 
-      # HTTP port for your application traffic (health check uses dedicated port below)
+      # HTTP port for your application traffic (welcome page until user configures app)
       http_port: 8080
 
       # Health check configuration
-      # Points to Next.js sample app health endpoint
+      # Points to dev health server for blank template (user configures their own app later)
       health_check:
-        http_path: /api/health
+        http_path: /dev_health
         initial_delay_seconds: 30
         period_seconds: 10
         timeout_seconds: 5
         success_threshold: 1
         failure_threshold: 5
-        port: 8080
+        port: 9090
 
       # Environment variables
       envs:
@@ -59,19 +59,19 @@ spec:
         # Runtime and database client installation (BUILD_TIME scope)
         # Enable only the runtimes you need for faster builds
         - key: INSTALL_NODE
-          value: "true"  # Node.js/Next.js/Remix apps (optional - health server uses Go binary)
+          value: "true"  # Default runtime (configure after deployment)
           scope: BUILD_TIME
         - key: INSTALL_PYTHON
-          value: "false"  # Python/FastAPI/Django apps
+          value: "false"
           scope: BUILD_TIME
         - key: INSTALL_GOLANG
-          value: "false"  # Go apps
+          value: "false"
           scope: BUILD_TIME
         - key: INSTALL_RUST
-          value: "false"  # Rust apps
+          value: "false"
           scope: BUILD_TIME
         - key: INSTALL_POSTGRES
-          value: "true"
+          value: "false"
           scope: BUILD_TIME
         - key: INSTALL_MONGODB
           value: "false"
@@ -81,9 +81,9 @@ spec:
           scope: BUILD_TIME
 
         # === GitHub Repository to Clone ===
-        # Default: Next.js sample app (ready to run)
+        # BLANK - User must configure their own repository
         - key: GITHUB_REPO_URL
-          value: "https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow"
+          value: ""
           scope: RUN_TIME
 
         # === GitHub Authentication ===
@@ -106,7 +106,7 @@ spec:
         # Built-in Go binary serving /dev_health on port 9090 for bootstrap health checks
         # Set to "false" when your app provides its own health endpoint
         - key: ENABLE_DEV_HEALTH
-          value: "false"
+          value: "true"
           scope: RUN_TIME
 
         # === Application Startup ===
@@ -124,13 +124,13 @@ spec:
         #   Note: Simple commands don't handle dependency installation, lock file conflicts,
         #   or automatic error recovery. Use scripts for production-ready setups.
         - key: DEV_START_COMMAND
-          value: "bash dev_startup.sh"
+          value: ""
           scope: RUN_TIME
 
         # === Monorepo Support ===
-        # Default: Next.js sample app folder
+        # Optional: Specify subfolder for monorepos
         - key: GITHUB_REPO_FOLDER
-          value: "hot-reload-template/app-examples/nextjs-sample-app"
+          value: ""
           scope: RUN_TIME
 
         # === Branch Selection ===
@@ -147,7 +147,7 @@ spec:
           value: "scripts/pre-deploy"
           scope: RUN_TIME
         - key: PRE_DEPLOY_COMMAND
-          value: "bash migrate.sh"
+          value: ""
           scope: RUN_TIME
         - key: PRE_DEPLOY_TIMEOUT
           value: "300"
@@ -161,7 +161,7 @@ spec:
           value: "scripts/post-deploy"
           scope: RUN_TIME
         - key: POST_DEPLOY_COMMAND
-          value: "bash seed.sh"
+          value: ""
           scope: RUN_TIME
         - key: POST_DEPLOY_TIMEOUT
           value: "300"
