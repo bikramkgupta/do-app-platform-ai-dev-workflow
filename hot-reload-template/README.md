@@ -2,7 +2,71 @@
 
 **Deploy once, iterate fast.** This template continuously syncs your GitHub repo and runs your dev server—no rebuild loop.
 
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow/tree/main&refcode=2ede236d8435)
+## 🚀 Quick Deploy - Choose Your Sample App
+
+Deploy a fully configured hot-reload development environment with one click:
+
+### Next.js Sample App
+Production-ready Next.js 14 with hot reload, health checks, and pre/post deploy hooks.
+- **Runtime:** Node.js 18+
+- **Features:** React 18, Crypto utilities, UUID generation
+- **Health:** `/api/health`
+
+[![Deploy Next.js](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow/tree/deploy-nextjs&refcode=2ede236d8435)
+
+---
+
+### Python FastAPI Sample
+Modern Python FastAPI app with uv package manager and hot reload.
+- **Runtime:** Python 3.10+
+- **Features:** Password hashing (bcrypt), HTTP client, auto-reload
+- **Health:** `/health`
+
+[![Deploy Python](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow/tree/deploy-python&refcode=2ede236d8435)
+
+---
+
+### Go Sample App
+High-performance Go HTTP server with file watching and hot rebuild.
+- **Runtime:** Go 1.21
+- **Features:** JWT tokens, UUID, bcrypt, YAML conversion
+- **Health:** `/health`
+
+[![Deploy Go](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow/tree/deploy-go&refcode=2ede236d8435)
+
+---
+
+### Ruby on Rails Sample
+Full Rails 8.1 application with rbenv, auto-migrations, and hot reload.
+- **Runtime:** Ruby 3.4.7
+- **Features:** Rails 8.1, Hotwire, PostgreSQL support, auto-migrations
+- **Health:** `/health`
+
+[![Deploy Rails](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow/tree/deploy-rails&refcode=2ede236d8435)
+
+---
+
+### Node.js Express (Job Demo)
+Simple Express app demonstrating pre-deploy and post-deploy job hooks.
+- **Runtime:** Node.js 18+
+- **Features:** Pre/post deploy job execution, migration simulation
+- **Health:** `/health`
+
+[![Deploy Node.js](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow/tree/deploy-nodejs&refcode=2ede236d8435)
+
+---
+
+### Blank Template (Custom App)
+Deploy your own application - just point to your GitHub repo.
+- **Runtime:** Configure after deployment (Node.js default)
+- **Features:** Fully customizable, supports all runtimes
+- **Health:** Configure in settings
+
+[![Deploy Blank](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow/tree/deploy-blank&refcode=2ede236d8435)
+
+**After deployment:** Update environment variables in App Platform UI to point to your repository.
+
+---
 
 ## How It Works
 
