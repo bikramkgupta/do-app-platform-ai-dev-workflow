@@ -8,7 +8,7 @@ ingress:
     match:
       path:
         prefix: /
-name: go-sample-app
+name: go-hotreload-test-claude
 region: syd1
 services:
 - dockerfile_path: hot-reload-template/Dockerfile
@@ -70,7 +70,7 @@ services:
     value: hot-reload-template/app-examples/go-sample-app
   - key: GITHUB_BRANCH
     scope: RUN_TIME
-    value: main
+    value: claude-hotreloadtesting-1
   - key: PRE_DEPLOY_REPO_URL
     scope: RUN_TIME
     value: ""
@@ -96,7 +96,7 @@ services:
     scope: RUN_TIME
     value: "300"
   github:
-    branch: main
+    branch: claude-hotreloadtesting-1
     repo: bikramkgupta/do-app-platform-ai-dev-workflow
   health_check:
     failure_threshold: 5
