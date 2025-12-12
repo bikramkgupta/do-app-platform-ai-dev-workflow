@@ -8,7 +8,7 @@ ingress:
     match:
       path:
         prefix: /
-name: blank-nodejs-template
+name: blank-hotreload-test-claude
 region: syd1
 services:
 - dockerfile_path: hot-reload-template/Dockerfile
@@ -39,7 +39,7 @@ services:
     value: "false"
   - key: GITHUB_REPO_URL
     scope: RUN_TIME
-    value: ${GITHUB_REPO_URL}
+    value: https://github.com/bikramkgupta/do-app-platform-ai-dev-workflow
   - key: GITHUB_TOKEN
     scope: RUN_TIME
     type: SECRET
@@ -61,10 +61,10 @@ services:
     value: hot-reload-template/app-examples/blank-nodejs-template
   - key: GITHUB_BRANCH
     scope: RUN_TIME
-    value: ${GITHUB_BRANCH}
+    value: claude-hotreloadtesting-1
   github:
-    branch: main
-    repo: ${GITHUB_REPO}
+    branch: claude-hotreloadtesting-1
+    repo: bikramkgupta/do-app-platform-ai-dev-workflow
     deploy_on_push: false
   health_check:
     failure_threshold: 5
