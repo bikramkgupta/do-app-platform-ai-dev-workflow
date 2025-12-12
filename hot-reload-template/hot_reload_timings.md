@@ -59,19 +59,25 @@
 ## python-fastapi-sample
 
 ### First Deployment
-- T_push_first:
-- T_ready_first:
-- first_deploy_duration:
+- T_push_first: 2025-12-12T09:44:28-08:00
+- T_ready_first: 2025-12-12T09:50:10-08:00
+- first_deploy_duration: 342s (5m 42s)
+- App ID: 0d1a8bc2-cc20-4343-a303-28d253062a17
+- URL: https://python-hotreload-test-claude-rna7d.ondigitalocean.app
 
 ### Code-Only Hot Reload
-- T_push_code:
-- T_seen_code:
-- code_hot_reload_duration:
+- T_push_code: 2025-12-12T09:50:46-08:00
+- T_seen_code: 2025-12-12T09:51:48-08:00
+- code_hot_reload_duration: 62s
+- Change: Added hot_reload field to root endpoint response
+- Notes: uvicorn --reload handled changes seamlessly
 
 ### Dependency Hot Reload
-- T_push_dep:
-- T_seen_dep:
-- dep_hot_reload_duration:
+- T_push_dep: 2025-12-12T09:52:30-08:00
+- T_seen_dep: 2025-12-12T09:53:46-08:00
+- dep_hot_reload_duration: 76s
+- Change: Added arrow dependency for human-readable time
+- Notes: uv handled dependency install seamlessly with hot reload
 
 ---
 
