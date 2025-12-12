@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/dustin/go-humanize"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
@@ -26,9 +27,11 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	payload := map[string]string{
-		"message":       "Hello from Go sample - Hot Reload Test",
-		"uuid":          uuid.New().String(),
-		"hot_reload":    "CODE_ONLY_CHANGE_SUCCESS",
+		"message":          "Hello from Go sample - Hot Reload Test",
+		"uuid":             uuid.New().String(),
+		"hot_reload":       "CODE_ONLY_CHANGE_SUCCESS",
+		"dependency_test":  "go-humanize added",
+		"human_time":       humanize.Time(time.Now().Add(-30 * time.Second)),
 	}
 	json.NewEncoder(w).Encode(payload)
 }
