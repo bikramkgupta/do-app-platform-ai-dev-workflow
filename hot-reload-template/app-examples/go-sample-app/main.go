@@ -26,8 +26,9 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	payload := map[string]string{
-		"message": "Hello from Go sample",
-		"uuid":    uuid.New().String(),
+		"message":       "Hello from Go sample - Hot Reload Test",
+		"uuid":          uuid.New().String(),
+		"hot_reload":    "CODE_ONLY_CHANGE_SUCCESS",
 	}
 	json.NewEncoder(w).Encode(payload)
 }
