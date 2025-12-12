@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi import Body
 from datetime import datetime
+import arrow
 import bcrypt
 from typing import Dict
 
@@ -11,7 +12,9 @@ app = FastAPI(title="Python FastAPI Sample")
 def read_root():
     return {
         "message": "Hello from FastAPI sample - Hot Reload Test",
-        "hot_reload": "CODE_ONLY_CHANGE_SUCCESS"
+        "hot_reload": "CODE_ONLY_CHANGE_SUCCESS",
+        "dependency_test": "arrow added",
+        "human_time": arrow.now().humanize()
     }
 
 

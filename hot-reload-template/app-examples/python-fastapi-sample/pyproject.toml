@@ -5,6 +5,7 @@ description = "FastAPI sample app for DigitalOcean App Platform"
 authors = [{name = "Bikram Gupta"}]
 requires-python = ">=3.10"
 dependencies = [
+  "arrow",
   "fastapi",
   "httpx>=0.28.1",
   "bcrypt",
