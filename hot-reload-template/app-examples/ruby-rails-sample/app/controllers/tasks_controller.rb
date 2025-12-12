@@ -2,7 +2,11 @@ class TasksController < ApplicationController
   before_action :set_task, only: %i[ show edit update destroy ]
 
   def health
-    require 'humanize' rescue nil
+    begin
+      require 'humanize'
+    rescue LoadError
+      # gem not installed yet
+    end
     hour = Time.current.hour
     hour_text = hour.respond_to?(:humanize) ? hour.humanize : hour.to_s
     render json: { status: "ok", time: Time.current.utc, hot_reload: "Dependency change verified!", hour_humanized: hour_text }
