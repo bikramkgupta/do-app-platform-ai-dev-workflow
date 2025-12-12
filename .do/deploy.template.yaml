@@ -102,7 +102,7 @@ spec:
           scope: RUN_TIME
 
         - key: GITHUB_SYNC_INTERVAL
-          value: "30"
+          value: "15"
           scope: RUN_TIME
 
         # === Dev Health Server ===
