@@ -7,7 +7,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    message: 'Node.js app with PRE/POST deploy jobs'
+    message: 'Node.js app with PRE/POST deploy jobs',
+    hot_reload: 'CODE_ONLY_CHANGE_SUCCESS'
   });
 });
 
