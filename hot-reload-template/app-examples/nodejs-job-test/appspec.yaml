@@ -8,7 +8,7 @@ ingress:
     match:
       path:
         prefix: /
-name: nodejs-job-test
+name: nodejs-hotreload-test-claude
 region: syd1
 services:
 - dockerfile_path: hot-reload-template/Dockerfile
@@ -70,7 +70,7 @@ services:
     value: hot-reload-template/app-examples/nodejs-job-test
   - key: GITHUB_BRANCH
     scope: RUN_TIME
-    value: main
+    value: claude-hotreloadtesting-1
   - key: PRE_DEPLOY_REPO_URL
     scope: RUN_TIME
     value: ""
@@ -96,9 +96,9 @@ services:
     scope: RUN_TIME
     value: "60"
   github:
-    branch: main
+    branch: claude-hotreloadtesting-1
     repo: bikramkgupta/do-app-platform-ai-dev-workflow
-    deploy_on_push: true
+    deploy_on_push: false
   health_check:
     failure_threshold: 5
     http_path: /health
