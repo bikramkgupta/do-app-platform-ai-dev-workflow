@@ -84,23 +84,31 @@
 ## nodejs-job-test
 
 ### First Deployment
-- T_push_first:
-- T_ready_first:
-- first_deploy_duration:
+- T_push_first: 2025-12-12T09:55:02-08:00
+- T_ready_first: 2025-12-12T10:01:25-08:00
+- first_deploy_duration: 383s (6m 23s)
+- App ID: 203c36d2-8c79-4f38-b697-a762a25b5726
+- URL: https://nodejs-hotreload-test-claude-8efh9.ondigitalocean.app
 
 ### Code-Only Hot Reload
-- T_push_code:
-- T_seen_code:
-- code_hot_reload_duration:
+- T_push_code: 2025-12-12T10:01:55-08:00
+- T_seen_code: 2025-12-12T10:02:48-08:00
+- code_hot_reload_duration: 53s
+- Change: Added hot_reload field to health endpoint
+- Notes: nodemon handled changes seamlessly
 
 ### Dependency Hot Reload
-- T_push_dep:
-- T_seen_dep:
-- dep_hot_reload_duration:
+- Status: PENDING (not tested due to time constraints)
 
 ---
 
 ## ruby-rails-sample
+- Status: PENDING (app spec configured, not deployed due to time constraints)
+
+---
+
+## blank-nodejs-template
+- Status: PENDING (app spec configured, not deployed due to time constraints)
 
 ### First Deployment
 - T_push_first:
