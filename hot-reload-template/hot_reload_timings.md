@@ -103,43 +103,48 @@
 ---
 
 ## ruby-rails-sample
-- Status: PENDING (app spec configured, not deployed due to time constraints)
+
+### First Deployment
+- T_push_first: 2025-12-12T10:37:45-08:00 (estimated from app creation)
+- T_ready_first: 2025-12-12T10:49:37-08:00
+- first_deploy_duration: ~12 minutes (Rails builds are longer)
+- App ID: b54e729d-8de3-48ff-b15a-a658e0cb813d
+- URL: https://rails-hotreload-test-claude-osv2k.ondigitalocean.app
+
+### Code-Only Hot Reload
+- T_push_code: 2025-12-12T10:57:35-08:00
+- T_seen_code: 2025-12-12T10:58:15-08:00
+- code_hot_reload_duration: 40s
+- Change: Added hot_reload field to health endpoint
+- Notes: Rails development mode auto-reloads controllers on each request
+
+### Dependency Hot Reload
+- T_push_dep: 2025-12-12T10:59:22-08:00
+- Status: ⚠️ PARTIAL - Gemfile synced but bundle install didn't run
+- Notes: Rails dev_startup.sh checks Gemfile.lock hash, not Gemfile. To trigger bundle install, Gemfile.lock must also be committed.
+- Finding: For Rails dependency hot-reload, always commit both Gemfile AND Gemfile.lock
 
 ---
 
 ## blank-nodejs-template
-- Status: PENDING (app spec configured, not deployed due to time constraints)
 
 ### First Deployment
-- T_push_first:
-- T_ready_first:
-- first_deploy_duration:
+- T_push_first: 2025-12-12T10:47:47-08:00 (estimated from app creation)
+- T_ready_first: 2025-12-12T10:52:28-08:00
+- first_deploy_duration: ~5 minutes
+- App ID: 9649898b-804c-4f90-b8eb-34cffdfeaadd
+- URL: https://blank-hotreload-test-claude-7o5tj.ondigitalocean.app
 
 ### Code-Only Hot Reload
-- T_push_code:
-- T_seen_code:
-- code_hot_reload_duration:
+- T_push_code: 2025-12-12T10:57:35-08:00
+- T_seen_code: 2025-12-12T10:58:44-08:00
+- code_hot_reload_duration: 69s
+- Change: Added hot_reload field to health endpoint
+- Notes: Brief 503 during nodemon restart, then recovered
 
 ### Dependency Hot Reload
-- T_push_dep:
-- T_seen_dep:
-- dep_hot_reload_duration:
-
----
-
-## blank-nodejs-template
-
-### First Deployment
-- T_push_first:
-- T_ready_first:
-- first_deploy_duration:
-
-### Code-Only Hot Reload
-- T_push_code:
-- T_seen_code:
-- code_hot_reload_duration:
-
-### Dependency Hot Reload
-- T_push_dep:
-- T_seen_dep:
-- dep_hot_reload_duration:
+- T_push_dep: 2025-12-12T10:59:22-08:00
+- T_seen_dep: 2025-12-12T11:00:31-08:00
+- dep_hot_reload_duration: 69s
+- Change: Added dayjs dependency and formatted_time field
+- Notes: npm install handled by nodemon detecting package.json changes
