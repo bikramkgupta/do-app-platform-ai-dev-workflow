@@ -34,19 +34,25 @@
 ## go-sample-app
 
 ### First Deployment
-- T_push_first:
-- T_ready_first:
-- first_deploy_duration:
+- T_push_first: 2025-12-12T09:30:00-08:00
+- T_ready_first: 2025-12-12T09:36:47-08:00
+- first_deploy_duration: 407s (6m 47s)
+- App ID: b93583bc-3bf4-4041-8a68-9678c6981b0b
+- URL: https://go-hotreload-test-claude-mftlz.ondigitalocean.app
 
 ### Code-Only Hot Reload
-- T_push_code:
-- T_seen_code:
-- code_hot_reload_duration:
+- T_push_code: 2025-12-12T09:37:19-08:00
+- T_seen_code: 2025-12-12T09:39:45-08:00
+- code_hot_reload_duration: 146s (2m 26s)
+- Change: Added hot_reload field to root handler response
+- Notes: App briefly showed 503 during Go binary rebuild
 
 ### Dependency Hot Reload
-- T_push_dep:
-- T_seen_dep:
-- dep_hot_reload_duration:
+- T_push_dep: 2025-12-12T09:40:32-08:00
+- T_seen_dep: 2025-12-12T09:43:34-08:00
+- dep_hot_reload_duration: 182s (3m 2s)
+- Change: Added go-humanize dependency and display human-readable time
+- Notes: Hot reload handled go mod tidy and rebuild - no full App Platform rebuild
 
 ---
 
