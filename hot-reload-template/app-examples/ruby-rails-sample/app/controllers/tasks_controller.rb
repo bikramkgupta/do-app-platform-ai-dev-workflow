@@ -2,7 +2,7 @@ class TasksController < ApplicationController
   before_action :set_task, only: %i[ show edit update destroy ]
 
   def health
-    render json: { status: "ok", time: Time.current.utc }
+    render json: { status: "ok", time: Time.current.utc, hot_reload: "Code-only change verified!" }
   end
 
   # GET /tasks or /tasks.json

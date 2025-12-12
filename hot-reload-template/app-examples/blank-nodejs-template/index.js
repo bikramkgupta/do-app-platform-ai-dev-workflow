@@ -8,7 +8,8 @@ app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     service: 'blank-nodejs-template',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    hot_reload: 'Code-only change verified!'
   });
 });
 
